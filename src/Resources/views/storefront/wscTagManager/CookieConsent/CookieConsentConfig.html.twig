@@ -1,0 +1,267 @@
+{# Cookie Consent Configuration and Initialization #}
+<script>
+    window.addEventListener('load', function() {
+        // Check if CookieConsent is loaded
+        if (typeof CookieConsent === 'undefined') {
+            console.error('WSC Cookie Consent: CookieConsent library not loaded');
+            return;
+        }
+
+        // Get configuration from Twig
+        const consentMode = '{{ config('WscSwCookieDataLayer.config.wscCookieConsentMode') }}' || 'opt-in';
+        const revisionEnabled = {{ config('WscSwCookieDataLayer.config.wscCookieConsentRevision') ? 'true' : 'false' }};
+        const revisionNumber = {{ config('WscSwCookieDataLayer.config.wscCookieConsentRevisionNumber') ?? 0 }};
+
+        // Get current language
+        const lang = document.documentElement.lang || 'de-DE';
+        const langCode = lang.substring(0, 2); // Extract 'de', 'en', or 'fr'
+
+        // Initialize Cookie Consent
+        CookieConsent.run({
+            // General settings
+            mode: consentMode,
+
+            // Revision control
+            revision: revisionEnabled ? revisionNumber : 0,
+
+            // Auto-clear cookies on consent withdrawal
+            autoClearCookies: true,
+
+            // Don't hide settings button after consent
+            hideFromBots: true,
+
+            // Cookie settings
+            cookie: {
+                name: 'wsc_cookie_consent',
+                domain: location.hostname,
+                path: '/',
+                expiresAfterDays: 365
+            },
+
+            // GUI options
+            guiOptions: {
+                consentModal: {
+                    layout: 'box inline',
+                    position: 'bottom center',
+                    equalWeightButtons: true,
+                    flipButtons: false
+                },
+                preferencesModal: {
+                    layout: 'box',
+                    position: 'right',
+                    equalWeightButtons: true,
+                    flipButtons: false
+                }
+            },
+
+            // Define categories
+            categories: {
+                necessary: {
+                    enabled: true,  // Always enabled
+                    readOnly: true  // Cannot be disabled
+                },
+                analytics: {
+                    enabled: consentMode === 'opt-out', // Auto-enabled for opt-out
+                    readOnly: false,
+                    autoClear: {
+                        cookies: [
+                            {
+                                name: /^_ga/,  // Google Analytics cookies
+                            },
+                            {
+                                name: /^_gid/,
+                            },
+                            {
+                                name: /^_pk_/,  // Matomo cookies
+                            },
+                            {
+                                name: /^_mtm/,
+                            }
+                        ]
+                    }
+                },
+                marketing: {
+                    enabled: consentMode === 'opt-out',
+                    readOnly: false
+                },
+                personalization: {
+                    enabled: consentMode === 'opt-out',
+                    readOnly: false
+                }
+            },
+
+            // Language configuration
+            language: {
+                default: langCode,
+                autoDetect: 'document',
+
+                translations: {
+                    de: {
+                        consentModal: {
+                            title: "{{ 'wscCookieConsent.modal.title'|trans|striptags }}",
+                            description: "{{ 'wscCookieConsent.modal.description'|trans|striptags }}",
+                            acceptAllBtn: "{{ 'wscCookieConsent.modal.acceptAll'|trans|striptags }}",
+                            acceptNecessaryBtn: "{{ 'wscCookieConsent.modal.acceptNecessary'|trans|striptags }}",
+                            showPreferencesBtn: "{{ 'wscCookieConsent.modal.showPreferences'|trans|striptags }}"
+                        },
+                        preferencesModal: {
+                            title: "{{ 'wscCookieConsent.preferences.title'|trans|striptags }}",
+                            acceptAllBtn: "{{ 'wscCookieConsent.preferences.acceptAll'|trans|striptags }}",
+                            acceptNecessaryBtn: "{{ 'wscCookieConsent.preferences.acceptNecessary'|trans|striptags }}",
+                            savePreferencesBtn: "{{ 'wscCookieConsent.preferences.savePreferences'|trans|striptags }}",
+                            closeIconLabel: "{{ 'wscCookieConsent.preferences.close'|trans|striptags }}",
+                            sections: [
+                                {
+                                    title: "{{ 'wscCookieConsent.categories.necessary.title'|trans|striptags }}",
+                                    description: "{{ 'wscCookieConsent.categories.necessary.description'|trans|striptags }}",
+                                    linkedCategory: 'necessary'
+                                },
+                                {
+                                    title: "{{ 'wscCookieConsent.categories.analytics.title'|trans|striptags }}",
+                                    description: "{{ 'wscCookieConsent.categories.analytics.description'|trans|striptags }}",
+                                    linkedCategory: 'analytics'
+                                },
+                                {
+                                    title: "{{ 'wscCookieConsent.categories.marketing.title'|trans|striptags }}",
+                                    description: "{{ 'wscCookieConsent.categories.marketing.description'|trans|striptags }}",
+                                    linkedCategory: 'marketing'
+                                },
+                                {
+                                    title: "{{ 'wscCookieConsent.categories.personalization.title'|trans|striptags }}",
+                                    description: "{{ 'wscCookieConsent.categories.personalization.description'|trans|striptags }}",
+                                    linkedCategory: 'personalization'
+                                }
+                            ]
+                        }
+                    },
+                    en: {
+                        consentModal: {
+                            title: "{{ 'wscCookieConsent.modal.title'|trans({}, null, 'en-GB')|striptags }}",
+                            description: "{{ 'wscCookieConsent.modal.description'|trans({}, null, 'en-GB')|striptags }}",
+                            acceptAllBtn: "{{ 'wscCookieConsent.modal.acceptAll'|trans({}, null, 'en-GB')|striptags }}",
+                            acceptNecessaryBtn: "{{ 'wscCookieConsent.modal.acceptNecessary'|trans({}, null, 'en-GB')|striptags }}",
+                            showPreferencesBtn: "{{ 'wscCookieConsent.modal.showPreferences'|trans({}, null, 'en-GB')|striptags }}"
+                        },
+                        preferencesModal: {
+                            title: "{{ 'wscCookieConsent.preferences.title'|trans({}, null, 'en-GB')|striptags }}",
+                            acceptAllBtn: "{{ 'wscCookieConsent.preferences.acceptAll'|trans({}, null, 'en-GB')|striptags }}",
+                            acceptNecessaryBtn: "{{ 'wscCookieConsent.preferences.acceptNecessary'|trans({}, null, 'en-GB')|striptags }}",
+                            savePreferencesBtn: "{{ 'wscCookieConsent.preferences.savePreferences'|trans({}, null, 'en-GB')|striptags }}",
+                            closeIconLabel: "{{ 'wscCookieConsent.preferences.close'|trans({}, null, 'en-GB')|striptags }}",
+                            sections: [
+                                {
+                                    title: "{{ 'wscCookieConsent.categories.necessary.title'|trans({}, null, 'en-GB')|striptags }}",
+                                    description: "{{ 'wscCookieConsent.categories.necessary.description'|trans({}, null, 'en-GB')|striptags }}",
+                                    linkedCategory: 'necessary'
+                                },
+                                {
+                                    title: "{{ 'wscCookieConsent.categories.analytics.title'|trans({}, null, 'en-GB')|striptags }}",
+                                    description: "{{ 'wscCookieConsent.categories.analytics.description'|trans({}, null, 'en-GB')|striptags }}",
+                                    linkedCategory: 'analytics'
+                                },
+                                {
+                                    title: "{{ 'wscCookieConsent.categories.marketing.title'|trans({}, null, 'en-GB')|striptags }}",
+                                    description: "{{ 'wscCookieConsent.categories.marketing.description'|trans({}, null, 'en-GB')|striptags }}",
+                                    linkedCategory: 'marketing'
+                                },
+                                {
+                                    title: "{{ 'wscCookieConsent.categories.personalization.title'|trans({}, null, 'en-GB')|striptags }}",
+                                    description: "{{ 'wscCookieConsent.categories.personalization.description'|trans({}, null, 'en-GB')|striptags }}",
+                                    linkedCategory: 'personalization'
+                                }
+                            ]
+                        }
+                    },
+                    fr: {
+                        consentModal: {
+                            title: "{{ 'wscCookieConsent.modal.title'|trans({}, null, 'fr-FR')|striptags }}",
+                            description: "{{ 'wscCookieConsent.modal.description'|trans({}, null, 'fr-FR')|striptags }}",
+                            acceptAllBtn: "{{ 'wscCookieConsent.modal.acceptAll'|trans({}, null, 'fr-FR')|striptags }}",
+                            acceptNecessaryBtn: "{{ 'wscCookieConsent.modal.acceptNecessary'|trans({}, null, 'fr-FR')|striptags }}",
+                            showPreferencesBtn: "{{ 'wscCookieConsent.modal.showPreferences'|trans({}, null, 'fr-FR')|striptags }}"
+                        },
+                        preferencesModal: {
+                            title: "{{ 'wscCookieConsent.preferences.title'|trans({}, null, 'fr-FR')|striptags }}",
+                            acceptAllBtn: "{{ 'wscCookieConsent.preferences.acceptAll'|trans({}, null, 'fr-FR')|striptags }}",
+                            acceptNecessaryBtn: "{{ 'wscCookieConsent.preferences.acceptNecessary'|trans({}, null, 'fr-FR')|striptags }}",
+                            savePreferencesBtn: "{{ 'wscCookieConsent.preferences.savePreferences'|trans({}, null, 'fr-FR')|striptags }}",
+                            closeIconLabel: "{{ 'wscCookieConsent.preferences.close'|trans({}, null, 'fr-FR')|striptags }}",
+                            sections: [
+                                {
+                                    title: "{{ 'wscCookieConsent.categories.necessary.title'|trans({}, null, 'fr-FR')|striptags }}",
+                                    description: "{{ 'wscCookieConsent.categories.necessary.description'|trans({}, null, 'fr-FR')|striptags }}",
+                                    linkedCategory: 'necessary'
+                                },
+                                {
+                                    title: "{{ 'wscCookieConsent.categories.analytics.title'|trans({}, null, 'fr-FR')|striptags }}",
+                                    description: "{{ 'wscCookieConsent.categories.analytics.description'|trans({}, null, 'fr-FR')|striptags }}",
+                                    linkedCategory: 'analytics'
+                                },
+                                {
+                                    title: "{{ 'wscCookieConsent.categories.marketing.title'|trans({}, null, 'fr-FR')|striptags }}",
+                                    description: "{{ 'wscCookieConsent.categories.marketing.description'|trans({}, null, 'fr-FR')|striptags }}",
+                                    linkedCategory: 'marketing'
+                                },
+                                {
+                                    title: "{{ 'wscCookieConsent.categories.personalization.title'|trans({}, null, 'fr-FR')|striptags }}",
+                                    description: "{{ 'wscCookieConsent.categories.personalization.description'|trans({}, null, 'fr-FR')|striptags }}",
+                                    linkedCategory: 'personalization'
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+
+            // Callbacks for DataLayer integration
+            onFirstConsent: function({ cookie }) {
+                console.log('WSC Cookie Consent: First consent given');
+                pushConsentToDataLayer(cookie);
+            },
+
+            onConsent: function({ cookie }) {
+                console.log('WSC Cookie Consent: Consent changed');
+                pushConsentToDataLayer(cookie);
+
+                // Reload scripts if analytics consent given
+                if (CookieConsent.acceptedCategory('analytics')) {
+                    loadAnalyticsScripts();
+                }
+            },
+
+            onChange: function({ cookie, changedCategories, changedServices }) {
+                console.log('WSC Cookie Consent: Settings changed', changedCategories);
+                pushConsentToDataLayer(cookie);
+            }
+        });
+
+        /**
+         * Push consent state to DataLayer
+         */
+        function pushConsentToDataLayer(cookie) {
+            window.dataLayer = window.dataLayer || [];
+
+            window.dataLayer.push({
+                event: 'cookie_consent_update',
+                cookie_consent: {
+                    necessary: CookieConsent.acceptedCategory('necessary'),
+                    analytics: CookieConsent.acceptedCategory('analytics'),
+                    marketing: CookieConsent.acceptedCategory('marketing'),
+                    personalization: CookieConsent.acceptedCategory('personalization')
+                },
+                timestamp: new Date().toISOString()
+            });
+
+            console.log('WSC Cookie Consent: DataLayer updated', window.dataLayer);
+        }
+
+        /**
+         * Load analytics scripts after consent
+         */
+        function loadAnalyticsScripts() {
+            // Trigger custom event for analytics script loading
+            const event = new CustomEvent('wsc-analytics-consent-granted');
+            document.dispatchEvent(event);
+        }
+    });
+</script>

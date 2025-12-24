@@ -1,0 +1,36 @@
+{% sw_extends '@Storefront/storefront/base.html.twig' %}
+
+{% block base_noscript %}
+
+    {{ parent() }}
+
+    {# Einbindung von Google Allgemein START #}
+    {% if config('WscSwCookieDataLayer.config.wscTagManagerGoogle') == "on" %}
+
+        {# Einbindung von Google TagManager START #}
+        {% if config('WscSwCookieDataLayer.config.wscTagManagerGoogleTM') == "on" %}
+
+            <!-- Google Tag Manager (noscript) -->
+            <noscript>
+                <iframe src="{% if config('WscSwCookieDataLayer.config.wscTagManagerServerSideTM') == "on" %}{{ config('WscSwCookieDataLayer.config.wscTagManagerGoogleTMURL')|raw }}{% else %}https://www.googletagmanager.com{% endif %}/ns.html?id={{ config('WscSwCookieDataLayer.config.wscTagManagerGoogleTagID')|raw }}" height="0" width="0" style="display:none;visibility:hidden"></iframe>
+            </noscript>
+            <!-- End Google Tag Manager (noscript) -->
+
+        {% endif %}
+        {# Einbindung von Google TagManager ENDE #}
+
+    {% endif %}
+    {# Einbindung von Google Allgemein ENDE #}
+{% endblock %}
+
+{% block base_body_script %}
+    {{ parent() }}
+
+    {# DataLayer Event Tracking (Issue #22) - Rendered AFTER PageLoadedEvents #}
+    {# TEMPORARY DEBUG: Load without conditions to test #}
+    <!-- WSC DEBUG: Template block executed -->
+    <!-- WSC DEBUG: activeRoute = {{ activeRoute|default('NOT SET') }} -->
+    <!-- WSC DEBUG: config check = {{ config('WscSwCookieDataLayer.config.wscTagManagerDataLayer')|default('NOT SET') }} -->
+
+    {% sw_include '@WscSwCookieDataLayer/storefront/wscTagManager/DataLayer.html.twig' %}
+{% endblock %}

@@ -1,0 +1,14 @@
+{# Cookie Consent Library Loading START #}
+{% if config('WscSwCookieDataLayer.config.wscTagManagerCookieConsent') == "on" %}
+
+    {# Load Cookie Consent CSS #}
+    <link rel="stylesheet" href="{{ asset('bundles/wscswcookiedatalayer/cookieconsent/cookieconsent.css', 'asset') }}">
+
+    {# Load Cookie Consent JavaScript #}
+    <script src="{{ asset('bundles/wscswcookiedatalayer/cookieconsent/cookieconsent.umd.js', 'asset') }}" defer></script>
+
+    {# Cookie Consent Configuration #}
+    {% sw_include '@WscSwCookieDataLayer/storefront/wscTagManager/CookieConsent/CookieConsentConfig.html.twig' %}
+
+{% endif %}
+{# Cookie Consent Library Loading END #}

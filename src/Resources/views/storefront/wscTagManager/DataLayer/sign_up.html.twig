@@ -1,0 +1,8 @@
+'event': 'sign_up',
+'method': 'Register Account',
+{% set customer = context.customer|default(null) %}
+'user': {
+    'user_email': '{{ customer ? customer.email|default('')|e('js') : '' }}',
+    'user_country': '{{ customer and customer.defaultBillingAddress and customer.defaultBillingAddress.country ? customer.defaultBillingAddress.country.translated.name|default('')|e('js') : '' }}',
+    'user_city': '{{ customer and customer.defaultBillingAddress ? customer.defaultBillingAddress.city|default('')|e('js') : '' }}'
+}

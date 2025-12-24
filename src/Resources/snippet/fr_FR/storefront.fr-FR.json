@@ -1,0 +1,36 @@
+{
+  "wscCookieConsent": {
+    "modal": {
+      "title": "Nous utilisons des cookies",
+      "description": "Ce site web utilise des cookies pour vous offrir les meilleures fonctionnalités possibles. Certains cookies sont techniquement nécessaires, d'autres nous aident à améliorer ce site. Vous pouvez ajuster vos paramètres à tout moment.",
+      "acceptAll": "Tout accepter",
+      "acceptNecessary": "Nécessaires uniquement",
+      "showPreferences": "Personnaliser les paramètres"
+    },
+    "preferences": {
+      "title": "Paramètres des cookies",
+      "acceptAll": "Tout accepter",
+      "acceptNecessary": "Nécessaires uniquement",
+      "savePreferences": "Enregistrer les préférences",
+      "close": "Fermer"
+    },
+    "categories": {
+      "necessary": {
+        "title": "Cookies nécessaires",
+        "description": "Ces cookies sont nécessaires aux fonctions de base du site web et ne peuvent pas être désactivés. Ils sont utilisés pour enregistrer vos paramètres et faire fonctionner le site en toute sécurité."
+      },
+      "analytics": {
+        "title": "Cookies analytiques",
+        "description": "Ces cookies nous aident à comprendre comment les visiteurs interagissent avec notre site web. Nous utilisons Google Analytics et/ou Matomo pour collecter des statistiques anonymisées et améliorer l'expérience utilisateur."
+      },
+      "marketing": {
+        "title": "Cookies marketing",
+        "description": "Ces cookies sont utilisés pour vous montrer des publicités et des campagnes marketing pertinentes. Ils suivent les visiteurs sur différents sites web."
+      },
+      "personalization": {
+        "title": "Cookies de personnalisation",
+        "description": "Ces cookies nous permettent de vous proposer du contenu personnalisé et des recommandations basées sur votre comportement de navigation."
+      }
+    }
+  }
+}

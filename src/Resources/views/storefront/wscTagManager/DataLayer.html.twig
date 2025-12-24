@@ -1,0 +1,37 @@
+{# Einbindung des DataLayers für Google START #}
+    {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerGoogle') == "on" %}
+
+        {# DEBUG #}
+        <!-- WSC TEST Debug: {{ wscTestDebug|default('Handler NOT called') }} -->
+        <!-- WSC DataLayer Debug: {{ wscDataLayerDebug|default('No debug info') }} -->
+        <!-- WSC DataLayer Event defined: {{ wscDataLayerEvent is defined ? 'YES' : 'NO' }} -->
+
+        {# DataLayer data is now built in PHP (Issue #22) #}
+        {% if wscDataLayerEvent is defined %}
+            <script>
+                window.dataLayer = window.dataLayer || [];
+                window.dataLayer.push({ ecommerce: null });
+                window.dataLayer.push({{ wscDataLayerEvent|json_encode(constant('JSON_UNESCAPED_UNICODE') b-or constant('JSON_UNESCAPED_SLASHES'))|raw }});
+            </script>
+        {% endif %}
+
+    {% endif %}
+{# Einbindung des DataLayers für Google ENDE #}
+
+{# Einbindung des DataLayers für Matomo START #}
+    {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerMatomo') == "on" %}
+
+        {# DataLayer data is now built in PHP (Issue #22) #}
+        {% if wscDataLayerEvent is defined %}
+            <script>
+                window._mtm = window._mtm || [];
+                window._mtm.push({ ecommerce: null });
+                window._mtm.push({{ wscDataLayerEvent|json_encode(constant('JSON_UNESCAPED_UNICODE') b-or constant('JSON_UNESCAPED_SLASHES'))|raw }});
+            </script>
+        {% endif %}
+
+    {% endif %}
+{# Einbindung des DataLayers für Matomo ENDE #}
+
+{# Add to Cart / Remove from Cart / Wishlist Event Tracking #}
+{# VERSCHOBEN: Wird jetzt in meta.html.twig geladen, damit es auf ALLEN Seiten verfügbar ist (Issue #18) #}

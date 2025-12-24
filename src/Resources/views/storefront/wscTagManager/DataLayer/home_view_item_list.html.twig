@@ -1,0 +1,84 @@
+{% set homeItems = [] %}
+{% if page.cmsPage is defined and page.cmsPage is not null %}
+    {% for section in page.cmsPage.sections %}
+        {% for block in section.blocks %}
+            {% for slot in block.slots %}
+                {% if slot.type == 'product-slider' and slot.data is defined %}
+                    {% set sliderName = 'home_product_slider' %}
+                    {% if slot.config is defined and slot.config.title is defined and slot.config.title.value is defined and slot.config.title.value %}
+                        {% set sliderName = slot.config.title.value %}
+                    {% endif %}
+                    {% if slot.data.products is defined %}
+                        {% for product in slot.data.products %}
+                            {% set homeItems = homeItems|merge([{ 'product': product, 'listName': sliderName }]) %}
+                        {% endfor %}
+                    {% elseif slot.data.listing is defined and slot.data.listing.elements is defined %}
+                        {% for product in slot.data.listing.elements %}
+                            {% set homeItems = homeItems|merge([{ 'product': product, 'listName': sliderName }]) %}
+                        {% endfor %}
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+    {% endfor %}
+{% endif %}
+
+'event': 'view_item_list',
+'ecommerce': {
+    'item_list_id': 'home',
+    'item_list_name': 'home',
+    'items': [
+        {% set itemIndex = 0 %}
+        {% for entry in homeItems %}
+            {% set product = entry.product %}
+            {% set listName = entry.listName %}
+            {% if product is defined and product is not null %}
+                {% if itemIndex > 0 %},{% endif %}
+                {
+                'item_id': '{{ product.productNumber|default('')|e('js') }}',
+                'item_name': '{{ product.translated.name|default('Unknown Product')|e('js') }}',
+                'affiliation': '{{ app.request.cookies.get('partner')|default('kein_Partner')|e('js') }}',
+                'currency': '{{ context.currency.isoCode|e('js') }}',
+                'index': {{ itemIndex + 1 }},
+                'item_list_name': '{{ listName|default('home_product_slider')|e('js') }}',
+
+                {% if product.manufacturer is defined and product.manufacturer is not null %}
+                    'item_brand': '{{ product.manufacturer.translated.name|default('')|e('js') }}',
+                {% endif %}
+
+                {% if product.variation is defined and product.variation|length > 0 %}
+                    'item_variant': '{% for variant in product.variation %}{{ variant.group|e('js') }}:{{ variant.option|e('js') }}{% if not loop.last %}|{% endif %}{% endfor %}',
+                {% endif %}
+
+                {% set productPriceNet = null %}
+                {% set productPriceGross = null %}
+                {% if product.price is defined and product.price is not null %}
+                    {% for priceItem in product.price %}
+                        {% set productPriceNet = priceItem.net %}
+                        {% set productPriceGross = priceItem.gross %}
+                        {% break %}
+                    {% endfor %}
+                    {% if productPriceNet is null and product.calculatedPrice is defined and product.calculatedPrice is not null %}
+                        {% set productPriceNet = product.calculatedPrice.netPrice|default(0) %}
+                    {% endif %}
+                {% elseif product.calculatedPrice is defined and product.calculatedPrice is not null %}
+                    {% set productPriceGross = product.calculatedPrice.unitPrice|default(0) %}
+                    {% set productPriceNet = product.calculatedPrice.netPrice|default(0) %}
+                {% endif %}
+
+                'price': {{ productPriceGross|default(0) }},
+                'price_net': {{ productPriceNet|default(0) }},
+                'price_gross': {{ productPriceGross|default(0) }},
+                'quantity': {{ product.minPurchase|default(1) }},
+                }
+                {% set itemIndex = itemIndex + 1 %}
+            {% endif %}
+        {% endfor %}
+    ]
+},
+{% set customer = context.customer|default(null) %}
+'user': {
+    'user_email': '{{ customer ? customer.email|default('')|e('js') : '' }}',
+    'user_country': '{{ customer and customer.defaultBillingAddress and customer.defaultBillingAddress.country ? customer.defaultBillingAddress.country.translated.name|default('')|e('js') : '' }}',
+    'user_city': '{{ customer and customer.defaultBillingAddress ? customer.defaultBillingAddress.city|default('')|e('js') : '' }}'
+}

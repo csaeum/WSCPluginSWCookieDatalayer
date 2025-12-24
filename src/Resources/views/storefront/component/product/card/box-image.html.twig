@@ -1,0 +1,10 @@
+{% sw_extends '@Storefront/storefront/component/product/card/box-image.html.twig' %}
+
+{% block component_product_box_badges %}
+    {# WSC DataLayer: Add product number for JavaScript tracking #}
+    {% if product.productNumber %}
+        <span class="d-none" data-product-number="{{ product.productNumber|e('html_attr') }}"></span>
+    {% endif %}
+
+    {{ parent() }}
+{% endblock %}

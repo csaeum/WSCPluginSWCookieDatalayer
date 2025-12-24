@@ -1,0 +1,36 @@
+{
+  "wscCookieConsent": {
+    "modal": {
+      "title": "We use cookies",
+      "description": "This website uses cookies to provide you with the best possible functionality. Some cookies are technically necessary, others help us improve this website. You can adjust your settings at any time.",
+      "acceptAll": "Accept all",
+      "acceptNecessary": "Necessary only",
+      "showPreferences": "Customize settings"
+    },
+    "preferences": {
+      "title": "Cookie Settings",
+      "acceptAll": "Accept all",
+      "acceptNecessary": "Necessary only",
+      "savePreferences": "Save preferences",
+      "close": "Close"
+    },
+    "categories": {
+      "necessary": {
+        "title": "Necessary Cookies",
+        "description": "These cookies are required for the basic functions of the website and cannot be disabled. They are used to save your settings and operate the website securely."
+      },
+      "analytics": {
+        "title": "Analytics Cookies",
+        "description": "These cookies help us understand how visitors interact with our website. We use Google Analytics and/or Matomo to collect anonymized statistics and improve the user experience."
+      },
+      "marketing": {
+        "title": "Marketing Cookies",
+        "description": "These cookies are used to show you relevant advertising and marketing campaigns. They track visitors across different websites."
+      },
+      "personalization": {
+        "title": "Personalization Cookies",
+        "description": "These cookies allow us to offer you personalized content and recommendations based on your browsing behavior."
+      }
+    }
+  }
+}

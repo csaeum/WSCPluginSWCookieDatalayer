@@ -1,0 +1,17 @@
+{% sw_extends '@Storefront/storefront/layout/cookie/cookie-permission.html.twig' %}
+
+{#
+    Override Shopware Cookie Banner when WSC Cookie Consent is active
+    This prevents two cookie banners from appearing simultaneously
+#}
+
+{% block layout_cookie_permission_inner %}
+    {# Check if WSC Cookie Consent is enabled #}
+    {% if config('WscSwCookieDataLayer.config.wscTagManagerCookieConsent') == "on" %}
+        {# WSC Cookie Consent is active - disable Shopware's cookie banner #}
+        {# Empty block - no Shopware cookie banner rendered #}
+    {% else %}
+        {# WSC Cookie Consent is disabled - use Shopware's default cookie banner #}
+        {{ parent() }}
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/platform/trunk/src/Core/System/SystemConfig/Schema/config.xsd">
+
+    <card>
+        <title lang="de-DE">Orest Bida - CookieConsent v3</title>
+        <title lang="en-GB">Orest Bida - CookieConsent v3</title>
+        <title lang="fr-FR">Orest Bida - CookieConsent v3</title>
+
+        <input-field type="bool">
+            <name>wscTagManagerCookieConsent</name>
+            <label lang="de-DE">Cookie Consent aktivieren</label>
+            <label lang="en-GB">Activate Cookie Consent</label>
+            <label lang="fr-FR">Activer Cookie Consent</label>
+            <helpText lang="de-DE">Aktiviert das Cookie Consent Banner und blockiert Tracking-Skripte bis zur Zustimmung</helpText>
+            <helpText lang="en-GB">Activates the Cookie Consent banner and blocks tracking scripts until consent is given</helpText>
+            <helpText lang="fr-FR">Active la bannière de consentement aux cookies et bloque les scripts de suivi jusqu'au consentement</helpText>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="single-select">
+            <name>wscCookieConsentMode</name>
+            <label lang="de-DE">Consent-Modus</label>
+            <label lang="en-GB">Consent Mode</label>
+            <label lang="fr-FR">Mode de consentement</label>
+            <options>
+                <option>
+                    <id>opt-in</id>
+                    <name lang="de-DE">Opt-in (DSGVO-konform, empfohlen)</name>
+                    <name lang="en-GB">Opt-in (GDPR-compliant, recommended)</name>
+                    <name lang="fr-FR">Opt-in (conforme RGPD, recommandé)</name>
+                </option>
+                <option>
+                    <id>opt-out</id>
+                    <name lang="de-DE">Opt-out (weniger streng)</name>
+                    <name lang="en-GB">Opt-out (less strict)</name>
+                    <name lang="fr-FR">Opt-out (moins strict)</name>
+                </option>
+            </options>
+            <defaultValue>opt-in</defaultValue>
+            <helpText lang="de-DE">Opt-in: Alle Cookies blockiert bis Zustimmung. Opt-out: Cookies aktiv bis Ablehnung</helpText>
+            <helpText lang="en-GB">Opt-in: All cookies blocked until consent. Opt-out: Cookies active until rejection</helpText>
+            <helpText lang="fr-FR">Opt-in: Tous les cookies bloqués jusqu'au consentement. Opt-out: Cookies actifs jusqu'au refus</helpText>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscCookieConsentRevision</name>
+            <label lang="de-DE">Revision Counter aktivieren</label>
+            <label lang="en-GB">Activate Revision Counter</label>
+            <label lang="fr-FR">Activer le compteur de révision</label>
+            <helpText lang="de-DE">Bei Änderung der Cookie-Policy wird Banner erneut angezeigt</helpText>
+            <helpText lang="en-GB">Banner is shown again when cookie policy changes</helpText>
+            <helpText lang="fr-FR">La bannière s'affiche à nouveau lorsque la politique de cookies change</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="int">
+            <name>wscCookieConsentRevisionNumber</name>
+            <label lang="de-DE">Revisionsnummer</label>
+            <label lang="en-GB">Revision Number</label>
+            <label lang="fr-FR">Numéro de révision</label>
+            <helpText lang="de-DE">Erhöhen Sie diese Zahl, um erneute Zustimmung zu erzwingen</helpText>
+            <helpText lang="en-GB">Increase this number to force re-consent</helpText>
+            <helpText lang="fr-FR">Augmentez ce nombre pour forcer un nouveau consentement</helpText>
+            <defaultValue>0</defaultValue>
+        </input-field>
+
+    </card>
+
+    <card>
+        <title lang="de-DE">DataLayer</title>
+        <title lang="en-GB">DataLayer</title>
+        <title lang="fr-FR">DataLayer</title>
+
+        <input-field type="bool">
+            <name>wscTagManagerDataLayer</name>
+            <label lang="de-DE">DataLayer aktivieren</label>
+            <label lang="en-GB">Activate data layer</label>
+            <label lang="fr-FR">Activer le DataLayer</label>
+            <helpText lang="de-DE">(Empfohlen!) Aktivieren um den DataLayer im Header zu erzeugen</helpText>
+            <helpText lang="en-GB">(Recommended!) Activate to create the DataLayer in the header</helpText>
+            <helpText lang="fr-FR">Initialise window.dataLayer et envoie un événement page_view basique</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscTagManagerDataLayerGoogle</name>
+            <label lang="de-DE">DataLayer Google aktivieren</label>
+            <label lang="en-GB">Activate Google data layer</label>
+            <label lang="fr-FR">Activer le DataLayer</label>
+            <helpText lang="de-DE">(Empfohlen!) Aktivieren um den DataLayer für Google im Header zu erzeugen</helpText>
+            <helpText lang="en-GB">(Recommended!) Activate to create the for Google DataLayer in the header</helpText>
+            <helpText lang="fr-FR">Initialise window.dataLayer et envoie un événement page_view basique</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscTagManagerDataLayerMatomo</name>
+            <label lang="de-DE">DataLayer Matomo aktivieren</label>
+            <label lang="en-GB">Activate Matomo data layer</label>
+            <label lang="fr-FR">Activer le DataLayer</label>
+            <helpText lang="de-DE">(Empfohlen!) Aktivieren um den DataLayer für Matomo im Header zu erzeugen</helpText>
+            <helpText lang="en-GB">(Recommended!) Activate to create the DataLayer for Matomo in the header</helpText>
+            <helpText lang="fr-FR">Initialise window.dataLayer et envoie un événement page_view basique</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+    </card>
+
+    <card>
+        <title lang="de-DE">Google</title>
+        <title lang="en-GB">Google</title>
+        <title lang="fr-FR">Google</title>
+
+        <input-field type="bool">
+            <name>wscTagManagerGoogle</name>
+            <label lang="de-DE">Google Allgemein aktivieren</label>
+            <label lang="en-GB">Turn on Google General</label>
+            <label lang="fr-FR">Activer le DataLayer</label>
+            <helpText lang="de-DE">Soll der Google generell geladen werden. So kann man es auch mal abschalten ohne die Einstellungen zu verlieren</helpText>
+            <helpText lang="en-GB">ShouShould the Google generally be loaded. So you can switch it off without losing the settings</helpText>
+            <helpText lang="fr-FR">Initialise window.dataLayer et envoie un événement page_view basique</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscTagManagerGoogleTM</name>
+            <label lang="de-DE">Google TagManager aktivieren</label>
+            <label lang="en-GB">Activate Google Tag Manager</label>
+            <label lang="fr-FR">Activer le DataLayer</label>
+            <helpText lang="de-DE">Soll der Tag Manager generell geladen werden. So kann man es auch mal abschalten ohne die Einstellungen zu verlieren</helpText>
+            <helpText lang="en-GB">ShouShould the Tag Manager generally be loaded. So you can switch it off without losing the settings</helpText>
+            <helpText lang="fr-FR">Initialise window.dataLayer et envoie un événement page_view basique</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="text">
+            <name>wscTagManagerGoogleTagID</name>
+            <label lang="de-DE">Tag Manager GTM</label>
+            <label lang="en-GB">Tag Manager GTM</label>
+            <label lang="fr-FR">Tag Manager GTM</label>
+            <placeholder lang="de-DE">GTM-xxxxxxx</placeholder>
+            <placeholder lang="en-GB">GTM-xxxxxxx</placeholder>
+            <placeholder lang="fr-FR">GTM-xxxxxxx</placeholder>
+            <helpText lang="de-DE">Zu finden unter tagmanager.google.com</helpText>
+            <helpText lang="en-GB">It can be found at tagmanager.google.com</helpText>
+            <helpText lang="fr-FR">Format: GTM-XXXXXXX</helpText>
+            <minLength>11</minLength>
+            <maxLength>15</maxLength>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscTagManagerServerSideTM</name>
+            <label lang="de-DE">eigenen ServerSide Tag Manager aktivieren</label>
+            <label lang="en-GB">Activate Google Tag Manager</label>
+            <label lang="fr-FR">Activer le DataLayer</label>
+            <helpText lang="de-DE">Soll der Tag Manager generell geladen werden. So kann man es auch mal abschalten ohne die Einstellungen zu verlieren</helpText>
+            <helpText lang="en-GB">ShouShould the Tag Manager generally be loaded. So you can switch it off without losing the settings</helpText>
+            <helpText lang="fr-FR">Initialise window.dataLayer et envoie un événement page_view basique</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="url">
+            <name>wscTagManagerGoogleTMURL</name>
+            <label lang="de-DE">Google TagManager URL (ohne den abschließenden '/')</label>
+            <label lang="en-GB">Google TagManager URL (without the trailing '/')</label>
+            <label lang="fr-FR">URL du conteneur Matomo</label>
+            <helpText lang="de-DE">Ihre URL zu Matomo ohne den abschließenden '/'</helpText>
+            <helpText lang="en-GB">Your URL to Matomo without the trailing '/'</helpText>
+            <helpText lang="fr-FR">Initialise window.dataLayer et envoie un événement page_view basique</helpText>
+            <placeholder lang="de-DE">meine.gtm-domain.de</placeholder>
+            <placeholder lang="en-GB">meine.gtm-domain.de</placeholder>
+            <placeholder lang="fr-FR">meine.gtm-domain.de</placeholder>
+            <copyable>true</copyable>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscTagManagerGoogleA4</name>
+            <label lang="de-DE">Google Analytics 4 aktivieren</label>
+            <label lang="en-GB">Activate Google Analytics 4</label>
+            <label lang="fr-FR">Activer le DataLayer</label>
+            <helpText lang="de-DE">Soll Google Analytics 4 generell geladen werden. So kann man es auch mal abschalten ohne die Einstellungen zu verlieren</helpText>
+            <helpText lang="en-GB">Should Google Analytics 4 generally be loaded. So you can switch it off without losing the settings</helpText>
+            <helpText lang="fr-FR">Initialise window.dataLayer et envoie un événement page_view basique</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="text">
+            <name>wscTagManagerGoogleA4ID</name>
+            <label lang="de-DE">Google Analytics 4</label>
+            <label lang="en-GB">Google Analytics 4</label>
+            <label lang="fr-FR">Google Analytics 4</label>
+            <placeholder lang="de-DE">G-xxxxxxxxxx</placeholder>
+            <placeholder lang="en-GB">G-xxxxxxxxxx</placeholder>
+            <placeholder lang="fr-FR">G-xxxxxxxxxx</placeholder>
+            <helpText lang="de-DE">Zu finden unter analytics.google.com, nutzt gtag</helpText>
+            <helpText lang="en-GB">Located at analytics.google.com, uses gtag</helpText>
+            <helpText lang="fr-FR">Format: GTM-XXXXXXX</helpText>
+            <minLength>12</minLength>
+            <maxLength>15</maxLength>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscTagManagerGoogleAnonymizeIP</name>
+            <label lang="de-DE">Google Analytics IP Anonymisierung</label>
+            <label lang="en-GB">Google Analytics IP anonymization</label>
+            <label lang="fr-FR">Activer le DataLayer</label>
+            <helpText lang="de-DE">(Empfohlen!) Aktivieren um die IP Adresse des Besuchers zu verschleiern</helpText>
+            <helpText lang="en-GB">(Recommended!) Enable to disguise the visitor's IP address</helpText>
+            <helpText lang="fr-FR">Initialise window.dataLayer et envoie un événement page_view basique</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+    </card>
+
+    <card>
+        <title lang="de-DE">Matomo</title>
+        <title lang="en-GB">Matomo</title>
+        <title lang="fr-FR">Matomo</title>
+
+        <input-field type="bool">
+            <name>wscTagManagerMatomo</name>
+            <label lang="de-DE">Matomo Allgemein aktivieren</label>
+            <label lang="en-GB">Turn on Matomo General</label>
+            <label lang="fr-FR">Activer le DataLayer</label>
+            <helpText lang="de-DE">Soll Matomo generell geladen werden. So kann man es auch mal abschalten ohne die Einstellungen zu verlieren</helpText>
+            <helpText lang="en-GB">Should Matomo generally be loaded. So you can switch it off without losing the settings</helpText>
+            <helpText lang="fr-FR">Initialise window.dataLayer et envoie un événement page_view basique</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="url">
+            <name>wscTagManagerMatomoURL</name>
+            <label lang="de-DE">Matomo URL (ohne den abschließenden '/')</label>
+            <label lang="en-GB">Matomo URL (without the trailing '/')</label>
+            <label lang="fr-FR">URL du conteneur Matomo</label>
+            <helpText lang="de-DE">Ihre URL zu Matomo ohne den abschließenden '/'</helpText>
+            <helpText lang="en-GB">Your URL to Matomo without the trailing '/'</helpText>
+            <helpText lang="fr-FR">Initialise window.dataLayer et envoie un événement page_view basique</helpText>
+            <placeholder lang="de-DE">mein.matomo.de</placeholder>
+            <placeholder lang="en-GB">mein.matomo.de</placeholder>
+            <placeholder lang="fr-FR">mein.matomo.de</placeholder>
+            <copyable>true</copyable>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscTagManagerMatomoTM</name>
+            <label lang="de-DE">Matomo TagManager aktivieren</label>
+            <label lang="en-GB">Activate Matomo TagManager</label>
+            <label lang="fr-FR">Activer le DataLayer</label>
+            <helpText lang="de-DE">Soll der Tag Manager generell geladen werden. So kann man es auch mal abschalten ohne die Einstellungen zu verlieren</helpText>
+            <helpText lang="en-GB">Should the Tag Manager generally be loaded. So you can switch it off without losing the settings</helpText>
+            <helpText lang="fr-FR">Initialise window.dataLayer et envoie un événement page_view basique</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="text">
+            <name>wscTagManagerMatomoTMID</name>
+            <label lang="de-DE">Matomo Container ID</label>
+            <label lang="en-GB">Matomo Container ID</label>
+            <label lang="fr-FR">Matomo Container ID</label>
+            <placeholder lang="de-DE">XxxXXxxX</placeholder>
+            <placeholder lang="en-GB">XxxXXxxX</placeholder>
+            <placeholder lang="fr-FR">XxxXXxxX</placeholder>
+            <helpText lang="de-DE">Zu finden im Matomo beim einrichten ihres TagManagers</helpText>
+            <helpText lang="en-GB">You can find it in Matomo when setting up your TagManager</helpText>
+            <helpText lang="fr-FR">Format: GTM-XXXXXXX</helpText>
+            <minLength>8</minLength>
+            <maxLength>10</maxLength>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscTagManagerMatomoPage</name>
+            <label lang="de-DE">Matomo Seiten ID aktivieren</label>
+            <label lang="en-GB">Activate Matomo Page ID</label>
+            <label lang="fr-FR">Activer le DataLayer</label>
+            <helpText lang="de-DE">Soll das Matomo Script für einfaches Tracking generell geladen werden. So kann man es auch mal abschalten ohne die Einstellungen zu verlieren</helpText>
+            <helpText lang="en-GB">Should the Matomo script be generally loaded for simple tracking. So you can switch it off without losing the settings</helpText>
+            <helpText lang="fr-FR">Initialise window.dataLayer et envoie un événement page_view basique</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="text">
+            <name>wscTagManagerMatomoPageID</name>
+            <label lang="de-DE">Matomo Seiten ID</label>
+            <label lang="en-GB">Matomo Page ID</label>
+            <label lang="fr-FR">Matomo Container ID</label>
+            <placeholder lang="de-DE">X</placeholder>
+            <placeholder lang="en-GB">X</placeholder>
+            <placeholder lang="fr-FR">X</placeholder>
+            <helpText lang="de-DE">Zu finden im Matomo beim einrichten ihres TagManagers</helpText>
+            <helpText lang="en-GB">You can find it in Matomo when setting up your TagManager</helpText>
+            <helpText lang="fr-FR">Format: GTM-XXXXXXX</helpText>
+            <minLength>1</minLength>
+            <maxLength>3</maxLength>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscTagManagerMatomoPageIDSubdomains</name>
+            <label lang="de-DE">Tracking-Anfragen nicht senden</label>
+            <label lang="en-GB">Do not send tracking requests</label>
+            <label lang="fr-FR">Activer le DataLayer</label>
+            <helpText lang="de-DE">Hierdurch werden Tracking-Anfragen nicht gesendet, falls der Benutzer nicht getrackt werden möchte. Hinweis: Diese Einstellung hat keine Auswirkung, da die Do-Not-Track Unterstützung serverseitig aktiviert ist</helpText>
+            <helpText lang="en-GB">This will not send tracking requests if the user does not want to be tracked. Note: This setting has no effect because Do-Not-Track support is enabled on the server side</helpText>
+            <helpText lang="fr-FR">Initialise window.dataLayer et envoie un événement page_view basique</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscTagManagerMatomoPageIDnoCookies</name>
+            <label lang="de-DE">Alle Tracking Cookies deaktivieren</label>
+            <label lang="en-GB">Disable all tracking cookies</label>
+            <label lang="fr-FR">Activer le DataLayer</label>
+            <helpText lang="de-DE">Deaktiviert alle First-Party Cookies. Bestehende Matomo Cookies für diese Webseite werden beim nächsten Seitenaufruf gelöscht</helpText>
+            <helpText lang="en-GB">Disables all first-party cookies. Existing Matomo cookies for this website will be deleted the next time the page is accessed</helpText>
+            <helpText lang="fr-FR">Initialise window.dataLayer et envoie un événement page_view basique</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+    </card>
+
+</config>

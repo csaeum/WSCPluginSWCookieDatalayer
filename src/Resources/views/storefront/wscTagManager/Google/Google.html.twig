@@ -1,0 +1,49 @@
+{# Einbindung von Google TagManager START #}
+{% if config('WscSwCookieDataLayer.config.wscTagManagerGoogleTM') == "on" %}
+
+    {# Get config values - SECURITY FIX: Remove |raw filter #}
+    {% set gtmId = config('WscSwCookieDataLayer.config.wscTagManagerGoogleTagID') %}
+    {% set serverSide = config('WscSwCookieDataLayer.config.wscTagManagerServerSideTM') == "on" %}
+    {% set serverUrl = config('WscSwCookieDataLayer.config.wscTagManagerGoogleTMURL') %}
+    {% set gtmUrl = serverSide ? serverUrl : 'https://www.googletagmanager.com' %}
+
+    <!-- Google Tag Manager - Loads only with analytics consent -->
+    <script data-category="analytics" type="text/plain">
+        // Google Tag Manager - Loads only with analytics consent
+        (function(w,d,s,l,i){
+            w[l]=w[l]||[];
+            w[l].push({'gtm.start': new Date().getTime(), event:'gtm.js'});
+            var f=d.getElementsByTagName(s)[0],
+                j=d.createElement(s),
+                dl=l!='dataLayer'?'&l='+l:'';
+            j.async=true;
+            j.src='{{ gtmUrl|e('js') }}/gtm.js?id='+i+dl;
+            f.parentNode.insertBefore(j,f);
+        })(window,document,'script','dataLayer','{{ gtmId|e('js') }}');
+    </script>
+    <!-- End Google Tag Manager -->
+
+{% endif %}
+{# Einbindung von Google TagManager ENDE #}
+
+{# Einbindung von Google GA4 START #}
+{% if config('WscSwCookieDataLayer.config.wscTagManagerGoogleA4') == "on" %}
+
+    {# Get config values - SECURITY FIX: Remove |raw filter #}
+    {% set ga4Id = config('WscSwCookieDataLayer.config.wscTagManagerGoogleA4ID') %}
+    {% set serverSide = config('WscSwCookieDataLayer.config.wscTagManagerServerSideTM') == "on" %}
+    {% set serverUrl = config('WscSwCookieDataLayer.config.wscTagManagerGoogleTMURL') %}
+    {% set ga4Url = serverSide ? serverUrl : 'https://www.googletagmanager.com' %}
+
+    <!-- Google tag (gtag.js) - Loads only with analytics consent -->
+    <script async data-category="analytics" type="text/plain" src="{{ ga4Url|e('html_attr') }}/gtag/js?id={{ ga4Id|e('url') }}"></script>
+    <script data-category="analytics" type="text/plain">
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', '{{ ga4Id|e('js') }}');
+    </script>
+    <!-- End Google tag -->
+
+{% endif %}
+{# Einbindung von Google GA4 ENDE #}

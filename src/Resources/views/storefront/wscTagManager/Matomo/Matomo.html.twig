@@ -1,0 +1,48 @@
+{# Einbindung von Matomo PageID Allgemein START #}
+{% if config('WscSwCookieDataLayer.config.wscTagManagerMatomoPage') == "on" %}
+
+    {# Get config values - SECURITY FIX: Remove |raw filter, fix Site ID bug #}
+    {% set matomoUrl = config('WscSwCookieDataLayer.config.wscTagManagerMatomoURL') %}
+    {% set matomoSiteId = config('WscSwCookieDataLayer.config.wscTagManagerMatomoPageID') %}
+
+    <!-- Matomo - Loads only with analytics consent -->
+    <script data-category="analytics" type="text/plain">
+        var _paq = window._paq = window._paq || [];
+        /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+        _paq.push(['trackPageView']);
+        _paq.push(['enableLinkTracking']);
+        (function() {
+            var u="{{ matomoUrl|e('js') }}/";
+            _paq.push(['setTrackerUrl', u+'matomo.php']);
+            _paq.push(['setSiteId', '{{ matomoSiteId|e('js') }}']); // BUG FIX #3: Removed extra '1'
+            var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+            g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+        })();
+    </script>
+    <!-- End Matomo Code -->
+
+{% endif %}
+{# Einbindung von Matomo PageID Allgemein ENDE #}
+
+{# Einbindung von Matomo TagManager Allgemein START #}
+{% if config('WscSwCookieDataLayer.config.wscTagManagerMatomoTM') == "on" %}
+
+    {# Get config values - SECURITY FIX: Remove |raw filter #}
+    {% set matomoUrl = config('WscSwCookieDataLayer.config.wscTagManagerMatomoURL') %}
+    {% set matomoTmId = config('WscSwCookieDataLayer.config.wscTagManagerMatomoTMID') %}
+
+    <!-- Matomo Tag Manager - Loads only with analytics consent -->
+    <script data-category="analytics" type="text/plain">
+        var _mtm = window._mtm = window._mtm || [];
+        _mtm.push({'mtm.startTime': (new Date().getTime()), 'event': 'mtm.Start'});
+        (function() {
+            var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+            g.async=true;
+            g.src='{{ matomoUrl|e('js') }}/js/container_{{ matomoTmId|e('js') }}.js';
+            s.parentNode.insertBefore(g,s);
+        })();
+    </script>
+    <!-- End Matomo Tag Manager -->
+
+{% endif %}
+{# Einbindung von Matomo TagManager Allgemein ENDE #}

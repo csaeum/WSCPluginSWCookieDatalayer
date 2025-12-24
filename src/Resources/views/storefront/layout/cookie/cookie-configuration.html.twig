@@ -1,0 +1,17 @@
+{% sw_extends '@Storefront/storefront/layout/cookie/cookie-configuration.html.twig' %}
+
+{#
+    Override Shopware Cookie Configuration Modal when WSC Cookie Consent is active
+    This prevents the Shopware cookie settings modal from appearing
+#}
+
+{% block layout_cookie_configuration_inner %}
+    {# Check if WSC Cookie Consent is enabled #}
+    {% if config('WscSwCookieDataLayer.config.wscTagManagerCookieConsent') == "on" %}
+        {# WSC Cookie Consent is active - disable Shopware's cookie configuration modal #}
+        {# Empty block - no Shopware cookie configuration rendered #}
+    {% else %}
+        {# WSC Cookie Consent is disabled - use Shopware's default cookie configuration #}
+        {{ parent() }}
+    {% endif %}
+{% endblock %}
