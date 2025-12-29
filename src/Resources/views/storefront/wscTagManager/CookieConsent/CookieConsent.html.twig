@@ -4,6 +4,55 @@
     {# Load Cookie Consent CSS #}
     <link rel="stylesheet" href="{{ asset('bundles/wscswcookiedatalayer/cookieconsent/cookieconsent.css', 'asset') }}">
 
+    {# Load Custom Theme CSS if selected #}
+    {% set selectedTheme = config('WscSwCookieDataLayer.config.wscCookieConsentTheme') %}
+    {% if selectedTheme and selectedTheme != 'default' %}
+        <link rel="stylesheet" href="{{ asset('bundles/wscswcookiedatalayer/cookieconsent/theme-' ~ selectedTheme ~ '.css', 'asset') }}">
+    {% endif %}
+
+    {# Apply Dark Mode if enabled (only for default theme, not for custom themes) #}
+    {% if config('WscSwCookieDataLayer.config.wscCookieConsentDarkMode') %}
+        {% if selectedTheme == 'default' or not selectedTheme %}
+            <style>
+                :root {
+                    color-scheme: dark;
+                }
+                #cc-main {
+                    --cc-bg: #1a1a1a;
+                    --cc-text: #e0e0e0;
+                    --cc-btn-primary-bg: #4a90e2;
+                    --cc-btn-primary-text: #ffffff;
+                    --cc-btn-primary-hover-bg: #357abd;
+                    --cc-btn-secondary-bg: #2a2a2a;
+                    --cc-btn-secondary-text: #e0e0e0;
+                    --cc-btn-secondary-hover-bg: #3a3a3a;
+                    --cc-toggle-bg-off: #5a5a5a;
+                    --cc-toggle-bg-on: #4a90e2;
+                    --cc-toggle-bg-readonly: #3a3a3a;
+                    --cc-toggle-knob-bg: #ffffff;
+                    --cc-toggle-knob-icon-color: #1a1a1a;
+                    --cc-cookie-category-block-bg: #2a2a2a;
+                    --cc-cookie-category-block-bg-hover: #3a3a3a;
+                    --cc-section-border: #3a3a3a;
+                    --cc-cookie-table-border: #3a3a3a;
+                    --cc-overlay-bg: rgba(0, 0, 0, .85);
+                    --cc-webkit-scrollbar-bg: #4a4a4a;
+                    --cc-webkit-scrollbar-bg-hover: #5a5a5a;
+                }
+            </style>
+        {% endif %}
+    {% endif %}
+
+    {# Disable CSS transitions if configured #}
+    {% if config('WscSwCookieDataLayer.config.wscCookieConsentDisableTransitions') %}
+        <style>
+            #cc-main * {
+                transition: none !important;
+                animation: none !important;
+            }
+        </style>
+    {% endif %}
+
     {# Load Cookie Consent JavaScript #}
     <script src="{{ asset('bundles/wscswcookiedatalayer/cookieconsent/cookieconsent.umd.js', 'asset') }}" defer></script>
 

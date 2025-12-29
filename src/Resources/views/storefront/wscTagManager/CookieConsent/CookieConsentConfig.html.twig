@@ -12,6 +12,25 @@
         const revisionEnabled = {{ config('WscSwCookieDataLayer.config.wscCookieConsentRevision') ? 'true' : 'false' }};
         const revisionNumber = {{ config('WscSwCookieDataLayer.config.wscCookieConsentRevisionNumber') ?? 0 }};
 
+        // GUI Options from Config
+        const modalLayout = '{{ config('WscSwCookieDataLayer.config.wscCookieConsentModalLayout') }}' || 'box inline';
+        const modalPosition = '{{ config('WscSwCookieDataLayer.config.wscCookieConsentModalPosition') }}' || 'bottom center';
+        const modalEqualButtons = {{ config('WscSwCookieDataLayer.config.wscCookieConsentModalEqualButtons') ? 'true' : 'false' }};
+        const modalFlipButtons = {{ config('WscSwCookieDataLayer.config.wscCookieConsentModalFlipButtons') ? 'true' : 'false' }};
+
+        const prefsLayout = '{{ config('WscSwCookieDataLayer.config.wscCookieConsentPrefsLayout') }}' || 'box';
+        const prefsPosition = '{{ config('WscSwCookieDataLayer.config.wscCookieConsentPrefsPosition') }}' || 'right';
+        const prefsEqualButtons = {{ config('WscSwCookieDataLayer.config.wscCookieConsentPrefsEqualButtons') ? 'true' : 'false' }};
+        const prefsFlipButtons = {{ config('WscSwCookieDataLayer.config.wscCookieConsentPrefsFlipButtons') ? 'true' : 'false' }};
+
+        // General Options
+        const darkMode = {{ config('WscSwCookieDataLayer.config.wscCookieConsentDarkMode') ? 'true' : 'false' }};
+        const disablePageInteraction = {{ config('WscSwCookieDataLayer.config.wscCookieConsentDisablePageInteraction') ? 'true' : 'false' }};
+        const disableTransitions = {{ config('WscSwCookieDataLayer.config.wscCookieConsentDisableTransitions') ? 'true' : 'false' }};
+
+        // Theme selection
+        const selectedTheme = '{{ config('WscSwCookieDataLayer.config.wscCookieConsentTheme') }}' || 'default';
+
         // Get current language
         const lang = document.documentElement.lang || 'de-DE';
         const langCode = lang.substring(0, 2); // Extract 'de', 'en', or 'fr'
@@ -41,18 +60,21 @@
             // GUI options
             guiOptions: {
                 consentModal: {
-                    layout: 'box inline',
-                    position: 'bottom center',
-                    equalWeightButtons: true,
-                    flipButtons: false
+                    layout: modalLayout,
+                    position: modalPosition,
+                    equalWeightButtons: modalEqualButtons,
+                    flipButtons: modalFlipButtons
                 },
                 preferencesModal: {
-                    layout: 'box',
-                    position: 'right',
-                    equalWeightButtons: true,
-                    flipButtons: false
+                    layout: prefsLayout,
+                    position: prefsPosition,
+                    equalWeightButtons: prefsEqualButtons,
+                    flipButtons: prefsFlipButtons
                 }
             },
+
+            // General options
+            disablePageInteraction: disablePageInteraction,
 
             // Define categories
             categories: {
@@ -234,6 +256,24 @@
                 pushConsentToDataLayer(cookie);
             }
         });
+
+        // Apply theme class to Cookie Consent
+        if (selectedTheme && selectedTheme !== 'default') {
+            const ccMain = document.getElementById('cc-main');
+            if (ccMain) {
+                ccMain.classList.add('cc--' + selectedTheme);
+                console.log('WSC Cookie Consent: Applied theme class cc--' + selectedTheme);
+            } else {
+                // If #cc-main is not yet available, wait a bit and try again
+                setTimeout(function() {
+                    const ccMain = document.getElementById('cc-main');
+                    if (ccMain) {
+                        ccMain.classList.add('cc--' + selectedTheme);
+                        console.log('WSC Cookie Consent: Applied theme class cc--' + selectedTheme);
+                    }
+                }, 100);
+            }
+        }
 
         /**
          * Push consent state to DataLayer

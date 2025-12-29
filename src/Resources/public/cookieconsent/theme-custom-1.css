@@ -1,0 +1,63 @@
+/**
+ * Custom Theme 1: Shopware Primary Color (Light)
+ *
+ * Dieses Theme basiert auf den Shopware Default Theme Farben.
+ * Es verwendet CSS-Variablen, die automatisch die Farben Ihres
+ * aktiven Shopware Themes übernehmen.
+ *
+ * Shopware CSS-Variablen:
+ * - var(--sw-color-brand-primary, #008490): Primärfarbe (türkis)
+ * - var(--sw-text-color, #4a5568): Textfarbe
+ * - var(--sw-background-color, #ffffff): Hintergrundfarbe
+ * - var(--sw-border-color, #d1d5db): Randfarbe
+ *
+ * Wenn Ihr Theme eigene Farben definiert, werden diese automatisch verwendet!
+ */
+
+.cc--custom-1 {
+    color-scheme: light;
+
+    /* Hintergrund und Texte basierend auf Shopware Theme */
+    --cc-bg: var(--sw-background-color, #ffffff);
+    --cc-primary-color: var(--sw-text-color, #4a5568);
+    --cc-secondary-color: #6b7280;
+
+    /* Primary Button verwendet Shopware Primary Color */
+    --cc-btn-primary-bg: var(--sw-color-brand-primary, #008490);
+    --cc-btn-primary-color: #ffffff;
+    --cc-btn-primary-hover-bg: var(--sw-color-brand-primary-darker, #006b75);
+    --cc-btn-primary-hover-color: #ffffff;
+
+    /* Secondary Button in dezenten Farben */
+    --cc-btn-secondary-bg: #f3f4f6;
+    --cc-btn-secondary-color: var(--cc-primary-color);
+    --cc-btn-secondary-hover-bg: #e5e7eb;
+    --cc-btn-secondary-hover-color: var(--sw-text-color, #4a5568);
+
+    /* Cookie Kategorien */
+    --cc-cookie-category-block-bg: #f9fafb;
+    --cc-cookie-category-block-border: var(--sw-border-color, #e5e7eb);
+    --cc-cookie-category-block-hover-bg: #f3f4f6;
+    --cc-cookie-category-block-hover-border: var(--sw-border-color, #d1d5db);
+    --cc-cookie-category-expanded-block-hover-bg: #f3f4f6;
+    --cc-cookie-category-expanded-block-bg: #f9fafb;
+
+    /* Toggle verwendet Primary Color wenn aktiv */
+    --cc-toggle-on-bg: var(--sw-color-brand-primary, #008490);
+    --cc-toggle-off-bg: #9ca3af;
+    --cc-toggle-readonly-bg: #d1d5db;
+    --cc-toggle-on-knob-bg: var(--cc-bg);
+    --cc-toggle-readonly-knob-bg: var(--cc-bg);
+
+    /* Borders und Separator */
+    --cc-separator-border-color: var(--sw-border-color, #e5e7eb);
+    --cc-footer-border-color: var(--sw-border-color, #e5e7eb);
+    --cc-footer-bg: #f9fafb;
+
+    /* Overlay */
+    --cc-overlay-bg: rgba(17, 24, 39, 0.75);
+
+    /* Scrollbar */
+    --cc-webkit-scrollbar-bg: #d1d5db;
+    --cc-webkit-scrollbar-bg-hover: #9ca3af;
+}

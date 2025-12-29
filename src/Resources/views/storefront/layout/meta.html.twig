@@ -38,6 +38,13 @@
     {% endif %}
     {# Einbindung von Google Allgemein ENDE #}
 
+    {# Einbindung von Custom Head Script START #}
+    {% set customHeadScript = config('WscSwCookieDataLayer.config.wscCustomScriptHead') %}
+    {% if customHeadScript %}
+        {{ customHeadScript|raw }}
+    {% endif %}
+    {# Einbindung von Custom Head Script ENDE #}
+
     {{ parent() }}
 
 {% endblock %}

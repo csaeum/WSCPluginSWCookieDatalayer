@@ -1,0 +1,80 @@
+/**
+ * Custom Theme 2: Shopware Accent Colors (Kontrastreich)
+ *
+ * Dieses Theme basiert auf den Shopware Default Theme Farben
+ * mit stärkerem Kontrast und moderneren Akzenten.
+ * Es verwendet CSS-Variablen, die automatisch die Farben Ihres
+ * aktiven Shopware Themes übernehmen.
+ *
+ * Shopware CSS-Variablen:
+ * - var(--sw-color-brand-primary, #008490): Primärfarbe
+ * - var(--sw-color-success, #3cc261): Erfolgsfarbe (grün)
+ * - var(--sw-color-info, #1992d4): Infofarbe (blau)
+ * - var(--sw-text-color, #4a5568): Textfarbe
+ *
+ * Wenn Ihr Theme eigene Farben definiert, werden diese automatisch verwendet!
+ */
+
+.cc--custom-2 {
+    color-scheme: light;
+
+    /* Helles, sauberes Design */
+    --cc-bg: #ffffff;
+    --cc-primary-color: var(--sw-text-color, #1f2937);
+    --cc-secondary-color: #6b7280;
+
+    /* Primary Button verwendet Success Color für positiven Eindruck */
+    --cc-btn-primary-bg: var(--sw-color-success, #10b981);
+    --cc-btn-primary-color: #ffffff;
+    --cc-btn-primary-hover-bg: var(--sw-color-success-darker, #059669);
+    --cc-btn-primary-hover-color: #ffffff;
+
+    /* Secondary Button mit Info Color */
+    --cc-btn-secondary-bg: var(--sw-color-info, #3b82f6);
+    --cc-btn-secondary-color: #ffffff;
+    --cc-btn-secondary-hover-bg: var(--sw-color-info-darker, #2563eb);
+    --cc-btn-secondary-hover-color: #ffffff;
+
+    /* Cookie Kategorien mit leichtem Farbverlauf */
+    --cc-cookie-category-block-bg: #f8fafc;
+    --cc-cookie-category-block-border: #e2e8f0;
+    --cc-cookie-category-block-hover-bg: #f1f5f9;
+    --cc-cookie-category-block-hover-border: #cbd5e1;
+    --cc-cookie-category-expanded-block-hover-bg: #f1f5f9;
+    --cc-cookie-category-expanded-block-bg: #f8fafc;
+
+    /* Toggle verwendet Primary/Success Color */
+    --cc-toggle-on-bg: var(--sw-color-brand-primary, #008490);
+    --cc-toggle-off-bg: #94a3b8;
+    --cc-toggle-readonly-bg: #cbd5e1;
+    --cc-toggle-on-knob-bg: #ffffff;
+    --cc-toggle-readonly-knob-bg: #ffffff;
+
+    /* Borders mit mehr Kontrast */
+    --cc-separator-border-color: #e2e8f0;
+    --cc-footer-border-color: #cbd5e1;
+    --cc-footer-bg: #f8fafc;
+
+    /* Overlay mit stärkerem Effekt */
+    --cc-overlay-bg: rgba(15, 23, 42, 0.8);
+
+    /* Scrollbar */
+    --cc-webkit-scrollbar-bg: #cbd5e1;
+    --cc-webkit-scrollbar-bg-hover: #94a3b8;
+}
+
+/* Zusätzliche Styles für Custom Theme 2 - abgerundete Ecken */
+.cc--custom-2 #cc-main .cm,
+.cc--custom-2 #cc-main .pm {
+    border-radius: 12px;
+}
+
+.cc--custom-2 #cc-main .cm__btn,
+.cc--custom-2 #cc-main .pm__btn {
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.cc--custom-2 #cc-main .section__toggle {
+    border-radius: 20px;
+}

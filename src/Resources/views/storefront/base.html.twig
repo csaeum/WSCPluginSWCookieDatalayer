@@ -21,6 +21,13 @@
 
     {% endif %}
     {# Einbindung von Google Allgemein ENDE #}
+
+    {# Einbindung von Custom Body Start Script START #}
+    {% set customBodyStartScript = config('WscSwCookieDataLayer.config.wscCustomScriptBodyStart') %}
+    {% if customBodyStartScript %}
+        {{ customBodyStartScript|raw }}
+    {% endif %}
+    {# Einbindung von Custom Body Start Script ENDE #}
 {% endblock %}
 
 {% block base_body_script %}
@@ -33,4 +40,11 @@
     <!-- WSC DEBUG: config check = {{ config('WscSwCookieDataLayer.config.wscTagManagerDataLayer')|default('NOT SET') }} -->
 
     {% sw_include '@WscSwCookieDataLayer/storefront/wscTagManager/DataLayer.html.twig' %}
+
+    {# Einbindung von Custom Body End Script START #}
+    {% set customBodyEndScript = config('WscSwCookieDataLayer.config.wscCustomScriptBodyEnd') %}
+    {% if customBodyEndScript %}
+        {{ customBodyEndScript|raw }}
+    {% endif %}
+    {# Einbindung von Custom Body End Script ENDE #}
 {% endblock %}

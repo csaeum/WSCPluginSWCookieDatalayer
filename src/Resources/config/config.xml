@@ -65,6 +65,310 @@
             <defaultValue>0</defaultValue>
         </input-field>
 
+        <input-field type="single-select">
+            <name>wscCookieConsentModalLayout</name>
+            <label lang="de-DE">Consent Modal Layout</label>
+            <label lang="en-GB">Consent Modal Layout</label>
+            <label lang="fr-FR">Mise en page du modal de consentement</label>
+            <options>
+                <option>
+                    <id>box</id>
+                    <name lang="de-DE">Box</name>
+                    <name lang="en-GB">Box</name>
+                    <name lang="fr-FR">Boîte</name>
+                </option>
+                <option>
+                    <id>box inline</id>
+                    <name lang="de-DE">Box Inline</name>
+                    <name lang="en-GB">Box Inline</name>
+                    <name lang="fr-FR">Boîte en ligne</name>
+                </option>
+                <option>
+                    <id>box wide</id>
+                    <name lang="de-DE">Box Wide</name>
+                    <name lang="en-GB">Box Wide</name>
+                    <name lang="fr-FR">Boîte large</name>
+                </option>
+                <option>
+                    <id>cloud</id>
+                    <name lang="de-DE">Cloud</name>
+                    <name lang="en-GB">Cloud</name>
+                    <name lang="fr-FR">Nuage</name>
+                </option>
+                <option>
+                    <id>cloud inline</id>
+                    <name lang="de-DE">Cloud Inline</name>
+                    <name lang="en-GB">Cloud Inline</name>
+                    <name lang="fr-FR">Nuage en ligne</name>
+                </option>
+                <option>
+                    <id>bar</id>
+                    <name lang="de-DE">Bar</name>
+                    <name lang="en-GB">Bar</name>
+                    <name lang="fr-FR">Barre</name>
+                </option>
+                <option>
+                    <id>bar inline</id>
+                    <name lang="de-DE">Bar Inline</name>
+                    <name lang="en-GB">Bar Inline</name>
+                    <name lang="fr-FR">Barre en ligne</name>
+                </option>
+            </options>
+            <defaultValue>box inline</defaultValue>
+            <helpText lang="de-DE">Layout des Cookie Consent Modals</helpText>
+            <helpText lang="en-GB">Layout of the cookie consent modal</helpText>
+            <helpText lang="fr-FR">Disposition du modal de consentement des cookies</helpText>
+        </input-field>
+
+        <input-field type="single-select">
+            <name>wscCookieConsentModalPosition</name>
+            <label lang="de-DE">Consent Modal Position</label>
+            <label lang="en-GB">Consent Modal Position</label>
+            <label lang="fr-FR">Position du modal de consentement</label>
+            <options>
+                <option>
+                    <id>top left</id>
+                    <name lang="de-DE">Oben Links</name>
+                    <name lang="en-GB">Top Left</name>
+                    <name lang="fr-FR">En haut à gauche</name>
+                </option>
+                <option>
+                    <id>top center</id>
+                    <name lang="de-DE">Oben Mitte</name>
+                    <name lang="en-GB">Top Center</name>
+                    <name lang="fr-FR">En haut au centre</name>
+                </option>
+                <option>
+                    <id>top right</id>
+                    <name lang="de-DE">Oben Rechts</name>
+                    <name lang="en-GB">Top Right</name>
+                    <name lang="fr-FR">En haut à droite</name>
+                </option>
+                <option>
+                    <id>middle left</id>
+                    <name lang="de-DE">Mitte Links</name>
+                    <name lang="en-GB">Middle Left</name>
+                    <name lang="fr-FR">Au milieu à gauche</name>
+                </option>
+                <option>
+                    <id>middle center</id>
+                    <name lang="de-DE">Mitte Mitte</name>
+                    <name lang="en-GB">Middle Center</name>
+                    <name lang="fr-FR">Au milieu au centre</name>
+                </option>
+                <option>
+                    <id>middle right</id>
+                    <name lang="de-DE">Mitte Rechts</name>
+                    <name lang="en-GB">Middle Right</name>
+                    <name lang="fr-FR">Au milieu à droite</name>
+                </option>
+                <option>
+                    <id>bottom left</id>
+                    <name lang="de-DE">Unten Links</name>
+                    <name lang="en-GB">Bottom Left</name>
+                    <name lang="fr-FR">En bas à gauche</name>
+                </option>
+                <option>
+                    <id>bottom center</id>
+                    <name lang="de-DE">Unten Mitte</name>
+                    <name lang="en-GB">Bottom Center</name>
+                    <name lang="fr-FR">En bas au centre</name>
+                </option>
+                <option>
+                    <id>bottom right</id>
+                    <name lang="de-DE">Unten Rechts</name>
+                    <name lang="en-GB">Bottom Right</name>
+                    <name lang="fr-FR">En bas à droite</name>
+                </option>
+            </options>
+            <defaultValue>bottom center</defaultValue>
+            <helpText lang="de-DE">Position des Cookie Consent Modals auf der Seite</helpText>
+            <helpText lang="en-GB">Position of the cookie consent modal on the page</helpText>
+            <helpText lang="fr-FR">Position du modal de consentement des cookies sur la page</helpText>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscCookieConsentModalEqualButtons</name>
+            <label lang="de-DE">Consent Modal - Buttons gleichgewichtet</label>
+            <label lang="en-GB">Consent Modal - Equal Weight Buttons</label>
+            <label lang="fr-FR">Modal de consentement - Boutons de poids égal</label>
+            <helpText lang="de-DE">Alle Buttons im Consent Modal haben die gleiche Größe</helpText>
+            <helpText lang="en-GB">All buttons in the consent modal have the same size</helpText>
+            <helpText lang="fr-FR">Tous les boutons du modal de consentement ont la même taille</helpText>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscCookieConsentModalFlipButtons</name>
+            <label lang="de-DE">Consent Modal - Buttons umdrehen</label>
+            <label lang="en-GB">Consent Modal - Flip Buttons</label>
+            <label lang="fr-FR">Modal de consentement - Inverser les boutons</label>
+            <helpText lang="de-DE">Reihenfolge der Buttons im Consent Modal umdrehen</helpText>
+            <helpText lang="en-GB">Reverse the order of buttons in the consent modal</helpText>
+            <helpText lang="fr-FR">Inverser l'ordre des boutons dans le modal de consentement</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="single-select">
+            <name>wscCookieConsentPrefsLayout</name>
+            <label lang="de-DE">Preferences Modal Layout</label>
+            <label lang="en-GB">Preferences Modal Layout</label>
+            <label lang="fr-FR">Mise en page du modal de préférences</label>
+            <options>
+                <option>
+                    <id>box</id>
+                    <name lang="de-DE">Box</name>
+                    <name lang="en-GB">Box</name>
+                    <name lang="fr-FR">Boîte</name>
+                </option>
+                <option>
+                    <id>bar</id>
+                    <name lang="de-DE">Bar</name>
+                    <name lang="en-GB">Bar</name>
+                    <name lang="fr-FR">Barre</name>
+                </option>
+                <option>
+                    <id>wide</id>
+                    <name lang="de-DE">Wide</name>
+                    <name lang="en-GB">Wide</name>
+                    <name lang="fr-FR">Large</name>
+                </option>
+            </options>
+            <defaultValue>box</defaultValue>
+            <helpText lang="de-DE">Layout des Preferences Modals (Einstellungen)</helpText>
+            <helpText lang="en-GB">Layout of the preferences modal (settings)</helpText>
+            <helpText lang="fr-FR">Disposition du modal de préférences (paramètres)</helpText>
+        </input-field>
+
+        <input-field type="single-select">
+            <name>wscCookieConsentPrefsPosition</name>
+            <label lang="de-DE">Preferences Modal Position</label>
+            <label lang="en-GB">Preferences Modal Position</label>
+            <label lang="fr-FR">Position du modal de préférences</label>
+            <options>
+                <option>
+                    <id>left</id>
+                    <name lang="de-DE">Links</name>
+                    <name lang="en-GB">Left</name>
+                    <name lang="fr-FR">Gauche</name>
+                </option>
+                <option>
+                    <id>right</id>
+                    <name lang="de-DE">Rechts</name>
+                    <name lang="en-GB">Right</name>
+                    <name lang="fr-FR">Droite</name>
+                </option>
+            </options>
+            <defaultValue>right</defaultValue>
+            <helpText lang="de-DE">Position des Preferences Modals auf der Seite</helpText>
+            <helpText lang="en-GB">Position of the preferences modal on the page</helpText>
+            <helpText lang="fr-FR">Position du modal de préférences sur la page</helpText>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscCookieConsentPrefsEqualButtons</name>
+            <label lang="de-DE">Preferences Modal - Buttons gleichgewichtet</label>
+            <label lang="en-GB">Preferences Modal - Equal Weight Buttons</label>
+            <label lang="fr-FR">Modal de préférences - Boutons de poids égal</label>
+            <helpText lang="de-DE">Alle Buttons im Preferences Modal haben die gleiche Größe</helpText>
+            <helpText lang="en-GB">All buttons in the preferences modal have the same size</helpText>
+            <helpText lang="fr-FR">Tous les boutons du modal de préférences ont la même taille</helpText>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscCookieConsentPrefsFlipButtons</name>
+            <label lang="de-DE">Preferences Modal - Buttons umdrehen</label>
+            <label lang="en-GB">Preferences Modal - Flip Buttons</label>
+            <label lang="fr-FR">Modal de préférences - Inverser les boutons</label>
+            <helpText lang="de-DE">Reihenfolge der Buttons im Preferences Modal umdrehen</helpText>
+            <helpText lang="en-GB">Reverse the order of buttons in the preferences modal</helpText>
+            <helpText lang="fr-FR">Inverser l'ordre des boutons dans le modal de préférences</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscCookieConsentDarkMode</name>
+            <label lang="de-DE">Dark Mode aktivieren</label>
+            <label lang="en-GB">Activate Dark Mode</label>
+            <label lang="fr-FR">Activer le mode sombre</label>
+            <helpText lang="de-DE">Aktiviert das dunkle Farbschema für das Standard Theme. Hat keine Auswirkung auf Custom Themes.</helpText>
+            <helpText lang="en-GB">Activates the dark color scheme for the Default theme. Has no effect on Custom themes.</helpText>
+            <helpText lang="fr-FR">Active le schéma de couleurs sombres pour le thème par défaut. N'a aucun effet sur les thèmes personnalisés.</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscCookieConsentDisablePageInteraction</name>
+            <label lang="de-DE">Seiten-Interaktion blockieren</label>
+            <label lang="en-GB">Disable Page Interaction</label>
+            <label lang="fr-FR">Désactiver l'interaction de la page</label>
+            <helpText lang="de-DE">Blockiert die Seite während das Cookie Banner angezeigt wird</helpText>
+            <helpText lang="en-GB">Blocks the page while the cookie banner is displayed</helpText>
+            <helpText lang="fr-FR">Bloque la page pendant que la bannière de cookies est affichée</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscCookieConsentDisableTransitions</name>
+            <label lang="de-DE">CSS-Übergänge deaktivieren</label>
+            <label lang="en-GB">Disable CSS Transitions</label>
+            <label lang="fr-FR">Désactiver les transitions CSS</label>
+            <helpText lang="de-DE">Deaktiviert CSS-Animationen für schnellere Darstellung</helpText>
+            <helpText lang="en-GB">Disables CSS animations for faster rendering</helpText>
+            <helpText lang="fr-FR">Désactive les animations CSS pour un rendu plus rapide</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="single-select">
+            <name>wscCookieConsentTheme</name>
+            <label lang="de-DE">Cookie Consent Theme</label>
+            <label lang="en-GB">Cookie Consent Theme</label>
+            <label lang="fr-FR">Thème de consentement des cookies</label>
+            <options>
+                <option>
+                    <id>default</id>
+                    <name lang="de-DE">Standard</name>
+                    <name lang="en-GB">Default</name>
+                    <name lang="fr-FR">Par défaut</name>
+                </option>
+                <option>
+                    <id>dark-turquoise</id>
+                    <name lang="de-DE">Custom: Dark Turquoise</name>
+                    <name lang="en-GB">Custom: Dark Turquoise</name>
+                    <name lang="fr-FR">Personnalisé: Turquoise foncé</name>
+                </option>
+                <option>
+                    <id>light-funky</id>
+                    <name lang="de-DE">Custom: Light Funky</name>
+                    <name lang="en-GB">Custom: Light Funky</name>
+                    <name lang="fr-FR">Personnalisé: Light Funky</name>
+                </option>
+                <option>
+                    <id>elegant-black</id>
+                    <name lang="de-DE">Custom: Elegant Black</name>
+                    <name lang="en-GB">Custom: Elegant Black</name>
+                    <name lang="fr-FR">Personnalisé: Elegant Black</name>
+                </option>
+                <option>
+                    <id>custom-1</id>
+                    <name lang="de-DE">Custom: Shopware Primary Color (nutzt Theme-Farben)</name>
+                    <name lang="en-GB">Custom: Shopware Primary Color (uses theme colors)</name>
+                    <name lang="fr-FR">Personnalisé: Couleur primaire Shopware (utilise les couleurs du thème)</name>
+                </option>
+                <option>
+                    <id>custom-2</id>
+                    <name lang="de-DE">Custom: Shopware Accent Colors (nutzt Theme-Farben)</name>
+                    <name lang="en-GB">Custom: Shopware Accent Colors (uses theme colors)</name>
+                    <name lang="fr-FR">Personnalisé: Couleurs d'accent Shopware (utilise les couleurs du thème)</name>
+                </option>
+            </options>
+            <defaultValue>default</defaultValue>
+            <helpText lang="de-DE">Custom Themes 1 &amp; 2 passen sich automatisch an Ihre Shopware Theme-Farben an (z.B. Primary Color, Success Color). Die 3 Orest Bida Themes haben feste Farben.</helpText>
+            <helpText lang="en-GB">Custom Themes 1 &amp; 2 automatically adapt to your Shopware theme colors (e.g. Primary Color, Success Color). The 3 Orest Bida themes have fixed colors.</helpText>
+            <helpText lang="fr-FR">Les thèmes personnalisés 1 et 2 s'adaptent automatiquement aux couleurs de votre thème Shopware (par ex. couleur primaire, couleur de succès). Les 3 thèmes Orest Bida ont des couleurs fixes.</helpText>
+        </input-field>
+
     </card>
 
     <card>
@@ -315,6 +619,52 @@
             <helpText lang="en-GB">Disables all first-party cookies. Existing Matomo cookies for this website will be deleted the next time the page is accessed</helpText>
             <helpText lang="fr-FR">Initialise window.dataLayer et envoie un événement page_view basique</helpText>
             <defaultValue>false</defaultValue>
+        </input-field>
+
+    </card>
+
+    <card>
+        <title lang="de-DE">Eigene Skripte</title>
+        <title lang="en-GB">Custom Scripts</title>
+        <title lang="fr-FR">Scripts personnalisés</title>
+
+        <input-field type="textarea">
+            <name>wscCustomScriptHead</name>
+            <label lang="de-DE">Custom Code im &lt;head&gt; Bereich</label>
+            <label lang="en-GB">Custom Code in &lt;head&gt; section</label>
+            <label lang="fr-FR">Code personnalisé dans la section &lt;head&gt;</label>
+            <helpText lang="de-DE">Fügen Sie hier eigenen HTML, CSS oder JavaScript Code ein, der im &lt;head&gt; Bereich der Seite eingefügt wird. Beispiel: &lt;style&gt;...&lt;/style&gt; oder &lt;script&gt;...&lt;/script&gt;</helpText>
+            <helpText lang="en-GB">Add custom HTML, CSS or JavaScript code here to be inserted in the &lt;head&gt; section of the page. Example: &lt;style&gt;...&lt;/style&gt; or &lt;script&gt;...&lt;/script&gt;</helpText>
+            <helpText lang="fr-FR">Ajoutez ici du code HTML, CSS ou JavaScript personnalisé à insérer dans la section &lt;head&gt; de la page. Exemple: &lt;style&gt;...&lt;/style&gt; ou &lt;script&gt;...&lt;/script&gt;</helpText>
+            <placeholder lang="de-DE">&lt;!-- Ihr Code hier --&gt;</placeholder>
+            <placeholder lang="en-GB">&lt;!-- Your code here --&gt;</placeholder>
+            <placeholder lang="fr-FR">&lt;!-- Votre code ici --&gt;</placeholder>
+        </input-field>
+
+        <input-field type="textarea">
+            <name>wscCustomScriptBodyStart</name>
+            <label lang="de-DE">Custom Code nach &lt;body&gt; Tag</label>
+            <label lang="en-GB">Custom Code after &lt;body&gt; tag</label>
+            <label lang="fr-FR">Code personnalisé après la balise &lt;body&gt;</label>
+            <helpText lang="de-DE">Fügen Sie hier eigenen HTML, CSS oder JavaScript Code ein, der direkt nach dem öffnenden &lt;body&gt; Tag eingefügt wird. Ideal für Tracking-Pixel oder NoScript-Fallbacks.</helpText>
+            <helpText lang="en-GB">Add custom HTML, CSS or JavaScript code here to be inserted right after the opening &lt;body&gt; tag. Ideal for tracking pixels or NoScript fallbacks.</helpText>
+            <helpText lang="fr-FR">Ajoutez ici du code HTML, CSS ou JavaScript personnalisé à insérer juste après la balise &lt;body&gt; ouvrante. Idéal pour les pixels de suivi ou les alternatives NoScript.</helpText>
+            <placeholder lang="de-DE">&lt;!-- Ihr Code hier --&gt;</placeholder>
+            <placeholder lang="en-GB">&lt;!-- Your code here --&gt;</placeholder>
+            <placeholder lang="fr-FR">&lt;!-- Votre code ici --&gt;</placeholder>
+        </input-field>
+
+        <input-field type="textarea">
+            <name>wscCustomScriptBodyEnd</name>
+            <label lang="de-DE">Custom Code vor &lt;/body&gt; Tag</label>
+            <label lang="en-GB">Custom Code before &lt;/body&gt; tag</label>
+            <label lang="fr-FR">Code personnalisé avant la balise &lt;/body&gt;</label>
+            <helpText lang="de-DE">Fügen Sie hier eigenen HTML, CSS oder JavaScript Code ein, der direkt vor dem schließenden &lt;/body&gt; Tag eingefügt wird. Ideal für Performance-optimierte Scripts die am Ende laden sollen.</helpText>
+            <helpText lang="en-GB">Add custom HTML, CSS or JavaScript code here to be inserted right before the closing &lt;/body&gt; tag. Ideal for performance-optimized scripts that should load at the end.</helpText>
+            <helpText lang="fr-FR">Ajoutez ici du code HTML, CSS ou JavaScript personnalisé à insérer juste avant la balise &lt;/body&gt; fermante. Idéal pour les scripts optimisés pour les performances qui doivent se charger à la fin.</helpText>
+            <placeholder lang="de-DE">&lt;!-- Ihr Code hier --&gt;</placeholder>
+            <placeholder lang="en-GB">&lt;!-- Your code here --&gt;</placeholder>
+            <placeholder lang="fr-FR">&lt;!-- Votre code ici --&gt;</placeholder>
         </input-field>
 
     </card>
