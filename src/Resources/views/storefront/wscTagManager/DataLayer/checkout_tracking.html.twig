@@ -1,0 +1,203 @@
+{# Checkout Tracking - add_payment_info & add_shipping_info Events #}
+<script>
+(function() {
+    'use strict';
+
+    // Only run on checkout pages
+    if (!window.location.pathname.includes('/checkout/')) {
+        return;
+    }
+
+    const dataLayer = window.dataLayer || [];
+    const mtmLayer = window._mtm || [];
+
+    // Helper: Get cart items from last DataLayer event
+    function getCartItems() {
+        for (let i = dataLayer.length - 1; i >= 0; i--) {
+            const entry = dataLayer[i];
+            if (entry && entry.ecommerce && entry.ecommerce.items && entry.ecommerce.items.length > 0) {
+                return {
+                    items: entry.ecommerce.items,
+                    value: entry.ecommerce.value || 0,
+                    currency: entry.ecommerce.currency || 'EUR'
+                };
+            }
+        }
+        return null;
+    }
+
+    // Helper: Push event to dataLayer and Matomo
+    function pushEvent(eventName, payload) {
+        const eventPayload = Object.assign({ event: eventName }, payload);
+
+        if (Array.isArray(dataLayer)) {
+            dataLayer.push({ ecommerce: null });
+            dataLayer.push(eventPayload);
+        }
+
+        if (Array.isArray(mtmLayer)) {
+            mtmLayer.push({ ecommerce: null });
+            mtmLayer.push(eventPayload);
+        }
+
+        // Debug mode
+        {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') %}
+        console.log('🔍 WSC Checkout Event:', eventName, eventPayload);
+        {% endif %}
+    }
+
+    // Track payment method selection
+    let lastPaymentMethod = null;
+
+    function trackPaymentMethodChange() {
+        // Find selected payment method
+        const selectedPayment = document.querySelector('input[name="paymentMethodId"]:checked');
+        if (!selectedPayment) {
+            return;
+        }
+
+        const paymentMethodId = selectedPayment.value;
+
+        // Find payment method name from label (only the title, not description)
+        let paymentMethodName = paymentMethodId;
+
+        const label = document.querySelector(`label[for="${selectedPayment.id}"]`);
+        if (label) {
+            // Try to find the payment name element (usually the first strong/span)
+            const nameElement = label.querySelector('.payment-method-name, .payment-name, strong, .font-weight-bold');
+            if (nameElement) {
+                paymentMethodName = nameElement.textContent.trim();
+            } else {
+                // Fallback: Get first line of text only, remove extra whitespace
+                const fullText = label.textContent || '';
+                // Split by newline, take first part, remove all extra whitespace
+                paymentMethodName = fullText.split('\n')[0].replace(/\s+/g, ' ').trim();
+            }
+        }
+
+        // Additional cleanup: If text is too long, it probably includes description - take first 50 chars
+        if (paymentMethodName.length > 50) {
+            paymentMethodName = paymentMethodName.substring(0, 50).trim();
+        }
+
+        // Only fire if payment method changed
+        if (paymentMethodId === lastPaymentMethod) {
+            return;
+        }
+        lastPaymentMethod = paymentMethodId;
+
+        const cartData = getCartItems();
+        if (!cartData) {
+            return;
+        }
+
+        pushEvent('add_payment_info', {
+            ecommerce: {
+                currency: cartData.currency,
+                value: cartData.value,
+                payment_type: paymentMethodName,
+                items: cartData.items
+            }
+        });
+    }
+
+    // Track shipping method selection
+    let lastShippingMethod = null;
+
+    function trackShippingMethodChange() {
+        // Find selected shipping method
+        const selectedShipping = document.querySelector('input[name="shippingMethodId"]:checked');
+        if (!selectedShipping) {
+            return;
+        }
+
+        const shippingMethodId = selectedShipping.value;
+
+        // Find shipping method name from label (only the title, not description)
+        let shippingMethodName = shippingMethodId;
+
+        const label = document.querySelector(`label[for="${selectedShipping.id}"]`);
+        if (label) {
+            // Try to find the shipping name element (usually the first strong/span)
+            const nameElement = label.querySelector('.shipping-method-name, .shipping-name, strong, .font-weight-bold');
+            if (nameElement) {
+                shippingMethodName = nameElement.textContent.trim();
+            } else {
+                // Fallback: Get first line of text only, remove extra whitespace
+                const fullText = label.textContent || '';
+                // Split by newline, take first part, remove all extra whitespace
+                shippingMethodName = fullText.split('\n')[0].replace(/\s+/g, ' ').trim();
+            }
+        }
+
+        // Additional cleanup: If text is too long, it probably includes description - take first 50 chars
+        if (shippingMethodName.length > 50) {
+            shippingMethodName = shippingMethodName.substring(0, 50).trim();
+        }
+
+        // Only fire if shipping method changed
+        if (shippingMethodId === lastShippingMethod) {
+            return;
+        }
+        lastShippingMethod = shippingMethodId;
+
+        const cartData = getCartItems();
+        if (!cartData) {
+            return;
+        }
+
+        pushEvent('add_shipping_info', {
+            ecommerce: {
+                currency: cartData.currency,
+                value: cartData.value,
+                shipping_tier: shippingMethodName,
+                items: cartData.items
+            }
+        });
+    }
+
+    // Register event listeners
+    function registerListeners() {
+        // Listen for payment method changes (radio buttons)
+        document.addEventListener('change', function(event) {
+            const target = event.target;
+            if (target && target.name === 'paymentMethodId') {
+                // Delay to allow UI to update
+                setTimeout(trackPaymentMethodChange, 100);
+            }
+        });
+
+        // Listen for shipping method changes (radio buttons)
+        document.addEventListener('change', function(event) {
+            const target = event.target;
+            if (target && target.name === 'shippingMethodId') {
+                // Delay to allow UI to update
+                setTimeout(trackShippingMethodChange, 100);
+            }
+        });
+
+        // Also track on page load (user might have pre-selected methods)
+        setTimeout(function() {
+            // Check if we're on confirm page with selected methods
+            if (window.location.pathname.includes('/checkout/confirm')) {
+                const selectedPayment = document.querySelector('input[name="paymentMethodId"]:checked');
+                const selectedShipping = document.querySelector('input[name="shippingMethodId"]:checked');
+
+                if (selectedPayment) {
+                    trackPaymentMethodChange();
+                }
+                if (selectedShipping) {
+                    trackShippingMethodChange();
+                }
+            }
+        }, 500);
+    }
+
+    // Initialize
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', registerListeners);
+    } else {
+        registerListeners();
+    }
+})();
+</script>

@@ -107,15 +107,29 @@ class DataLayerBuilder
                 $items[0]['item_variant'] = implode('|', $variants);
             }
 
-            // Add price
-            $productPrice = 0;
-            if ($product->getPrice()) {
-                foreach ($product->getPrice() as $priceItem) {
-                    $productPrice = $priceItem->getNet();
-                    break;
+            // Add price (Issue #2: Fixed price calculation - Brutto/Netto/Tax)
+            // NOTE: price_net and price_gross are NOT GA4 standard, but useful for GTM calculations
+            $calculatedPrice = $product->getCalculatedPrice();
+            if ($calculatedPrice) {
+                // GA4 Standard: price = Brutto (with tax)
+                $items[0]['price'] = $calculatedPrice->getUnitPrice(); // Brutto per unit
+
+                // Extra fields for GTM (not GA4 standard):
+                $items[0]['price_net'] = $calculatedPrice->getUnitPrice() - ($calculatedPrice->getCalculatedTaxes()->getAmount() / $calculatedPrice->getQuantity());
+                $items[0]['price_gross'] = $calculatedPrice->getUnitPrice(); // Same as price
+
+                // Tax per unit (optional, for GTM)
+                $taxAmount = $calculatedPrice->getCalculatedTaxes()->getAmount() / $calculatedPrice->getQuantity();
+                if ($taxAmount > 0) {
+                    $items[0]['tax'] = round($taxAmount, 2);
                 }
+            } else {
+                // Fallback if no calculated price
+                $items[0]['price'] = 0;
+                $items[0]['price_net'] = 0;
+                $items[0]['price_gross'] = 0;
             }
-            $items[0]['price'] = $productPrice;
+
             $items[0]['quantity'] = $product->getMinPurchase() ?? 1;
 
             $result = [
@@ -207,12 +221,23 @@ class DataLayerBuilder
                 $item['item_variant'] = implode('|', $variants);
             }
 
-            // Add price
+            // Add price (Issue #2: Fixed price calculation)
+            // NOTE: price_net and price_gross are NOT GA4 standard, but useful for GTM
             $calculatedPrice = $product->getCalculatedPrice();
             if ($calculatedPrice) {
-                $item['price'] = $calculatedPrice->getUnitPrice();
-                $item['price_net'] = $calculatedPrice->getUnitPrice();
-                $item['price_gross'] = $calculatedPrice->getTotalPrice();
+                // GA4 Standard: price = Brutto per unit
+                $item['price'] = $calculatedPrice->getUnitPrice(); // Brutto per unit
+
+                // Extra fields for GTM (not GA4 standard):
+                $netPrice = $calculatedPrice->getUnitPrice() - ($calculatedPrice->getCalculatedTaxes()->getAmount() / $calculatedPrice->getQuantity());
+                $item['price_net'] = round($netPrice, 2);
+                $item['price_gross'] = $calculatedPrice->getUnitPrice(); // Same as price
+
+                // Tax per unit (optional)
+                $taxAmount = $calculatedPrice->getCalculatedTaxes()->getAmount() / $calculatedPrice->getQuantity();
+                if ($taxAmount > 0) {
+                    $item['tax'] = round($taxAmount, 2);
+                }
             }
 
             $item['quantity'] = 1;
@@ -249,14 +274,38 @@ class DataLayerBuilder
             $items = [];
 
             foreach ($cart->getLineItems() as $lineItem) {
-                $items[] = [
+                $itemData = [
                     'item_id' => $lineItem->getReferencedId() ?? '',
                     'item_name' => $lineItem->getLabel() ?? '',
                     'affiliation' => 'kein_Partner',
                     'currency' => $context->getCurrency()->getIsoCode(),
-                    'price' => $lineItem->getPrice() ? $lineItem->getPrice()->getTotalPrice() : 0,
                     'quantity' => $lineItem->getQuantity(),
                 ];
+
+                // Add price (Issue #2: Fixed price calculation)
+                // NOTE: price_net and price_gross are NOT GA4 standard
+                if ($lineItem->getPrice()) {
+                    $itemPrice = $lineItem->getPrice();
+                    // GA4 Standard: price = Brutto per unit
+                    $itemData['price'] = $itemPrice->getUnitPrice(); // Brutto per unit
+
+                    // Extra fields for GTM:
+                    $netPrice = $itemPrice->getUnitPrice() - ($itemPrice->getCalculatedTaxes()->getAmount() / $lineItem->getQuantity());
+                    $itemData['price_net'] = round($netPrice, 2);
+                    $itemData['price_gross'] = $itemPrice->getUnitPrice();
+
+                    // Tax per unit
+                    $taxAmount = $itemPrice->getCalculatedTaxes()->getAmount() / $lineItem->getQuantity();
+                    if ($taxAmount > 0) {
+                        $itemData['tax'] = round($taxAmount, 2);
+                    }
+                } else {
+                    $itemData['price'] = 0;
+                    $itemData['price_net'] = 0;
+                    $itemData['price_gross'] = 0;
+                }
+
+                $items[] = $itemData;
             }
 
             $result = [
@@ -309,14 +358,35 @@ class DataLayerBuilder
         $items = [];
 
         foreach ($cart->getLineItems() as $lineItem) {
-            $items[] = [
+            $itemData = [
                 'item_id' => $lineItem->getReferencedId() ?? '',
                 'item_name' => $lineItem->getLabel() ?? '',
                 'affiliation' => 'kein_Partner',
                 'currency' => $context->getCurrency()->getIsoCode(),
-                'price' => $lineItem->getPrice()->getTotalPrice(),
                 'quantity' => $lineItem->getQuantity(),
             ];
+
+            // Add price (Issue #2: Fixed price calculation)
+            if ($lineItem->getPrice()) {
+                $itemPrice = $lineItem->getPrice();
+                $itemData['price'] = $itemPrice->getUnitPrice();
+
+                // Extra fields for GTM (not GA4 standard):
+                $netPrice = $itemPrice->getUnitPrice() - ($itemPrice->getCalculatedTaxes()->getAmount() / $lineItem->getQuantity());
+                $itemData['price_net'] = round($netPrice, 2);
+                $itemData['price_gross'] = $itemPrice->getUnitPrice();
+
+                $taxAmount = $itemPrice->getCalculatedTaxes()->getAmount() / $lineItem->getQuantity();
+                if ($taxAmount > 0) {
+                    $itemData['tax'] = round($taxAmount, 2);
+                }
+            } else {
+                $itemData['price'] = 0;
+                $itemData['price_net'] = 0;
+                $itemData['price_gross'] = 0;
+            }
+
+            $items[] = $itemData;
         }
 
         return [
@@ -357,38 +427,90 @@ class DataLayerBuilder
             $items = [];
 
             foreach ($order->getLineItems() as $lineItem) {
-                $items[] = [
+                $itemData = [
                     'item_id' => $lineItem->getReferencedId() ?? '',
                     'item_name' => $lineItem->getLabel() ?? '',
                     'affiliation' => 'kein_Partner',
                     'currency' => $context->getCurrency()->getIsoCode(),
-                    'price' => $lineItem->getTotalPrice(),
                     'quantity' => $lineItem->getQuantity(),
                 ];
+
+                // Add price (Issue #2: Fixed price calculation)
+                // NOTE: price should be price per unit, NOT total price!
+                if ($lineItem->getPrice()) {
+                    $itemPrice = $lineItem->getPrice();
+                    // GA4: price per unit (Brutto)
+                    $itemData['price'] = $itemPrice->getUnitPrice();
+
+                    // Extra fields for GTM (not GA4 standard):
+                    $netPrice = $itemPrice->getUnitPrice() - ($itemPrice->getCalculatedTaxes()->getAmount() / $lineItem->getQuantity());
+                    $itemData['price_net'] = round($netPrice, 2);
+                    $itemData['price_gross'] = $itemPrice->getUnitPrice();
+
+                    $taxAmount = $itemPrice->getCalculatedTaxes()->getAmount() / $lineItem->getQuantity();
+                    if ($taxAmount > 0) {
+                        $itemData['tax'] = round($taxAmount, 2);
+                    }
+                } else {
+                    // Fallback: use getTotalPrice() and divide by quantity
+                    $unitPrice = $lineItem->getTotalPrice() / max($lineItem->getQuantity(), 1);
+                    $itemData['price'] = round($unitPrice, 2);
+                    $itemData['price_net'] = round($unitPrice, 2); // Fallback
+                    $itemData['price_gross'] = round($unitPrice, 2);
+                }
+
+                $items[] = $itemData;
+            }
+
+            // Extract coupon/promotion codes (Issue #2: Gutscheincode)
+            $couponCodes = [];
+            foreach ($order->getLineItems() as $lineItem) {
+                // Shopware Promotion Line Items haben type = 'promotion'
+                if ($lineItem->getType() === 'promotion' && $lineItem->getPayload()) {
+                    $payload = $lineItem->getPayload();
+                    if (isset($payload['code'])) {
+                        $couponCodes[] = $payload['code'];
+                    }
+                }
+            }
+
+            $ecommerceData = [
+                'transaction_id' => $order->getOrderNumber(),
+                'affiliation' => 'kein_Partner',
+                'currency' => $context->getCurrency()->getIsoCode(),
+                'value' => $order->getPrice()->getTotalPrice(),
+                'tax' => $order->getPrice()->getCalculatedTaxes()->getAmount(),
+                'shipping' => $order->getShippingCosts()->getTotalPrice(),
+                'items' => $items,
+            ];
+
+            // Add coupon code if used (GA4 Standard)
+            if (!empty($couponCodes)) {
+                $ecommerceData['coupon'] = implode(',', $couponCodes);
             }
 
             $result = [
                 'event' => 'purchase',
-                'ecommerce' => [
-                    'transaction_id' => $order->getOrderNumber(),
-                    'affiliation' => 'kein_Partner',
-                    'currency' => $context->getCurrency()->getIsoCode(),
-                    'value' => $order->getPrice()->getTotalPrice(),
-                    'tax' => $order->getPrice()->getCalculatedTaxes()->getAmount(),
-                    'shipping' => $order->getShippingCosts()->getTotalPrice(),
-                    'items' => $items,
-                ],
-                'user' => $this->buildUserData($context),
+                'ecommerce' => $ecommerceData,
+                'user' => $this->buildUserData($context, true), // Extended user data for purchase!
             ];
 
             if ($debugMode) {
-                $result['_wsc_debug'] = [
+                $debugInfo = [
                     'event_type' => 'purchase',
                     'transaction_id' => $order->getOrderNumber(),
                     'items_count' => count($items),
                     'order_value' => $order->getPrice()->getTotalPrice(),
                     'timestamp' => date('Y-m-d H:i:s'),
                 ];
+
+                // Add coupon info to debug
+                if (!empty($couponCodes)) {
+                    $debugInfo['coupon_used'] = true;
+                    $debugInfo['coupon_codes'] = $couponCodes;
+                }
+
+                $result['_wsc_debug'] = $debugInfo;
 
                 $this->logger->info('WSC DataLayer: purchase event built successfully', [
                     'order_number' => $order->getOrderNumber(),
@@ -422,7 +544,7 @@ class DataLayerBuilder
     /**
      * Build user data
      */
-    private function buildUserData(SalesChannelContext $context): array
+    private function buildUserData(SalesChannelContext $context, bool $includeExtendedData = false): array
     {
         $customer = $context->getCustomer();
 
@@ -436,12 +558,47 @@ class DataLayerBuilder
 
         $billingAddress = $customer->getDefaultBillingAddress();
 
-        return [
+        $userData = [
             'user_email' => $customer->getEmail() ?? '',
             'user_country' => $billingAddress && $billingAddress->getCountry()
                 ? $billingAddress->getCountry()->getTranslated()['name'] ?? ''
                 : '',
             'user_city' => $billingAddress ? $billingAddress->getCity() ?? '' : '',
         ];
+
+        // Extended user data (Issue #2: For purchase event)
+        if ($includeExtendedData && $customer) {
+            // Name
+            $userData['user_first_name'] = $customer->getFirstName() ?? '';
+            $userData['user_last_name'] = $customer->getLastName() ?? '';
+
+            // Birthday (if available)
+            if ($customer->getBirthday()) {
+                $userData['user_birthday'] = $customer->getBirthday()->format('Y-m-d');
+            }
+
+            // Customer Number
+            $userData['user_customer_number'] = $customer->getCustomerNumber() ?? '';
+
+            // Billing Address (extended)
+            if ($billingAddress) {
+                $userData['user_street'] = $billingAddress->getStreet() ?? '';
+                $userData['user_zipcode'] = $billingAddress->getZipcode() ?? '';
+                $userData['user_phone'] = $billingAddress->getPhoneNumber() ?? '';
+                $userData['user_company'] = $billingAddress->getCompany() ?? '';
+
+                // Country ISO Code
+                if ($billingAddress->getCountry()) {
+                    $userData['user_country_iso'] = $billingAddress->getCountry()->getIso() ?? '';
+                }
+            }
+
+            // Customer Group
+            if ($customer->getGroup()) {
+                $userData['user_customer_group'] = $customer->getGroup()->getTranslated()['name'] ?? '';
+            }
+        }
+
+        return $userData;
     }
 }
