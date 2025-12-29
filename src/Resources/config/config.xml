@@ -409,6 +409,17 @@
             <defaultValue>false</defaultValue>
         </input-field>
 
+        <input-field type="bool">
+            <name>wscTagManagerDataLayerDebug</name>
+            <label lang="de-DE">DataLayer Debug-Modus aktivieren</label>
+            <label lang="en-GB">Activate DataLayer Debug Mode</label>
+            <label lang="fr-FR">Activer le mode de débogage DataLayer</label>
+            <helpText lang="de-DE">Aktiviert ausführliche Debug-Logs in der Browser-Console und im Server-Log. Nur für Entwicklung/Testing aktivieren!</helpText>
+            <helpText lang="en-GB">Activates detailed debug logs in browser console and server log. Only activate for development/testing!</helpText>
+            <helpText lang="fr-FR">Active les journaux de débogage détaillés dans la console du navigateur et le journal du serveur. Activer uniquement pour le développement/test!</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
     </card>
 
     <card>

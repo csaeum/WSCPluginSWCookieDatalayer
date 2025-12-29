@@ -9,21 +9,44 @@ use Shopware\Storefront\Page\Checkout\Cart\CheckoutCartPageLoadedEvent;
 use Shopware\Storefront\Page\Checkout\Confirm\CheckoutConfirmPageLoadedEvent;
 use Shopware\Storefront\Page\Checkout\Finish\CheckoutFinishPageLoadedEvent;
 use Shopware\Core\Content\Product\Events\ProductListingResultEvent;
+use Shopware\Core\System\SystemConfig\SystemConfigService;
 use WSC\SWCookieDataLayer\Service\DataLayerBuilder;
+use WSC\SWCookieDataLayer\Struct\DataLayerStruct;
+use WSC\SWCookieDataLayer\Extension\DataLayerPageExtension;
+use Psr\Log\LoggerInterface;
 
 /**
  * DataLayerSubscriber
  *
  * Subscribes to Shopware page events and builds DataLayer events for Google Analytics 4 and Matomo.
  * Implements Issue #22: Event Subscriber für E-Commerce-Events
+ * Issue #1: Added PSR-3 Logger and Debug Mode support
  */
 class DataLayerSubscriber implements EventSubscriberInterface
 {
     private DataLayerBuilder $dataLayerBuilder;
+    private LoggerInterface $logger;
+    private SystemConfigService $systemConfigService;
 
-    public function __construct(DataLayerBuilder $dataLayerBuilder)
-    {
+    public function __construct(
+        DataLayerBuilder $dataLayerBuilder,
+        LoggerInterface $logger,
+        SystemConfigService $systemConfigService
+    ) {
         $this->dataLayerBuilder = $dataLayerBuilder;
+        $this->logger = $logger;
+        $this->systemConfigService = $systemConfigService;
+    }
+
+    /**
+     * Check if debug mode is enabled
+     */
+    private function isDebugMode(?string $salesChannelId = null): bool
+    {
+        return (bool) $this->systemConfigService->get(
+            'WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug',
+            $salesChannelId
+        );
     }
 
     public static function getSubscribedEvents(): array
@@ -43,23 +66,51 @@ class DataLayerSubscriber implements EventSubscriberInterface
      */
     public function onProductPageLoaded(ProductPageLoadedEvent $event): void
     {
-        $page = $event->getPage();
-        $product = $page->getProduct();
+        $debugMode = $this->isDebugMode($event->getSalesChannelContext()->getSalesChannelId());
 
-        if (!$product) {
-            return;
+        try {
+            $page = $event->getPage();
+            $product = $page->getProduct();
+
+            if (!$product) {
+                if ($debugMode) {
+                    $this->logger->warning('WSC DataLayer Subscriber: No product found on ProductPageLoadedEvent');
+                }
+                return;
+            }
+
+            if ($debugMode) {
+                $this->logger->info('WSC DataLayer Subscriber: ProductPageLoadedEvent triggered', [
+                    'productId' => $product->getId(),
+                    'route' => $event->getRequest()->attributes->get('_route'),
+                ]);
+            }
+
+            $dataLayerEvent = $this->dataLayerBuilder->buildViewItemData(
+                $product,
+                $event->getSalesChannelContext(),
+                $event->getRequest()
+            );
+
+            // Use PageExtension instead of assign() to fix PHP 8.2+ deprecation warning
+            $dataLayerStruct = new DataLayerStruct(
+                $dataLayerEvent,
+                $event->getRequest()->attributes->get('_route')
+            );
+            $page->addExtension('wscDataLayer', new DataLayerPageExtension($dataLayerStruct));
+
+            if ($debugMode) {
+                $this->logger->info('WSC DataLayer Subscriber: DataLayer extension added to page', [
+                    'hasExtension' => $page->hasExtension('wscDataLayer'),
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            $this->logger->error('WSC DataLayer Subscriber: Exception in onProductPageLoaded', [
+                'error' => $e->getMessage(),
+                'trace' => $debugMode ? $e->getTraceAsString() : 'Enable debug mode for stack trace',
+            ]);
         }
-
-        $dataLayerEvent = $this->dataLayerBuilder->buildViewItemData(
-            $product,
-            $event->getSalesChannelContext(),
-            $event->getRequest()
-        );
-
-        $page->assign([
-            'wscDataLayerEvent' => $dataLayerEvent,
-            'activeRoute' => $event->getRequest()->attributes->get('_route'),
-        ]);
     }
 
     /**
@@ -107,16 +158,15 @@ class DataLayerSubscriber implements EventSubscriberInterface
                 $dataLayerEvent['ecommerce']['item_list_name'] = $category->getTranslated()['name'] ?? 'Product Listing';
             }
 
-            // Use prepared listing data
-            $page->assign([
-                'wscDataLayerEvent' => $dataLayerEvent,
-                'activeRoute' => $request->attributes->get('_route'),
-            ]);
+            // Use prepared listing data with PageExtension
+            $dataLayerStruct = new DataLayerStruct(
+                $dataLayerEvent,
+                $request->attributes->get('_route')
+            );
+            $page->addExtension('wscDataLayer', new DataLayerPageExtension($dataLayerStruct));
         } else {
             // No listing data available (e.g., custom page without product listing)
-            $page->assign([
-                'activeRoute' => $request->attributes->get('_route'),
-            ]);
+            // Don't add extension - template will show warning in debug mode
         }
     }
 
@@ -125,18 +175,40 @@ class DataLayerSubscriber implements EventSubscriberInterface
      */
     public function onCheckoutCartPageLoaded(CheckoutCartPageLoadedEvent $event): void
     {
-        $page = $event->getPage();
-        $cart = $page->getCart();
+        $debugMode = $this->isDebugMode($event->getSalesChannelContext()->getSalesChannelId());
 
-        $dataLayerEvent = $this->dataLayerBuilder->buildViewCartData(
-            $cart,
-            $event->getSalesChannelContext()
-        );
+        try {
+            $page = $event->getPage();
+            $cart = $page->getCart();
 
-        $page->assign([
-            'wscDataLayerEvent' => $dataLayerEvent,
-            'activeRoute' => $event->getRequest()->attributes->get('_route'),
-        ]);
+            if ($debugMode) {
+                $this->logger->info('WSC DataLayer Subscriber: CheckoutCartPageLoadedEvent triggered', [
+                    'cartToken' => $cart->getToken(),
+                    'route' => $event->getRequest()->attributes->get('_route'),
+                ]);
+            }
+
+            $dataLayerEvent = $this->dataLayerBuilder->buildViewCartData(
+                $cart,
+                $event->getSalesChannelContext()
+            );
+
+            $dataLayerStruct = new DataLayerStruct(
+                $dataLayerEvent,
+                $event->getRequest()->attributes->get('_route')
+            );
+            $page->addExtension('wscDataLayer', new DataLayerPageExtension($dataLayerStruct));
+
+            if ($debugMode) {
+                $this->logger->info('WSC DataLayer Subscriber: DataLayer extension added to page (view_cart)');
+            }
+
+        } catch (\Exception $e) {
+            $this->logger->error('WSC DataLayer Subscriber: Exception in onCheckoutCartPageLoaded', [
+                'error' => $e->getMessage(),
+                'trace' => $debugMode ? $e->getTraceAsString() : 'Enable debug mode for stack trace',
+            ]);
+        }
     }
 
     /**
@@ -144,18 +216,40 @@ class DataLayerSubscriber implements EventSubscriberInterface
      */
     public function onCheckoutConfirmPageLoaded(CheckoutConfirmPageLoadedEvent $event): void
     {
-        $page = $event->getPage();
-        $cart = $page->getCart();
+        $debugMode = $this->isDebugMode($event->getSalesChannelContext()->getSalesChannelId());
 
-        $dataLayerEvent = $this->dataLayerBuilder->buildBeginCheckoutData(
-            $cart,
-            $event->getSalesChannelContext()
-        );
+        try {
+            $page = $event->getPage();
+            $cart = $page->getCart();
 
-        $page->assign([
-            'wscDataLayerEvent' => $dataLayerEvent,
-            'activeRoute' => $event->getRequest()->attributes->get('_route'),
-        ]);
+            if ($debugMode) {
+                $this->logger->info('WSC DataLayer Subscriber: CheckoutConfirmPageLoadedEvent triggered', [
+                    'cartToken' => $cart->getToken(),
+                    'route' => $event->getRequest()->attributes->get('_route'),
+                ]);
+            }
+
+            $dataLayerEvent = $this->dataLayerBuilder->buildBeginCheckoutData(
+                $cart,
+                $event->getSalesChannelContext()
+            );
+
+            $dataLayerStruct = new DataLayerStruct(
+                $dataLayerEvent,
+                $event->getRequest()->attributes->get('_route')
+            );
+            $page->addExtension('wscDataLayer', new DataLayerPageExtension($dataLayerStruct));
+
+            if ($debugMode) {
+                $this->logger->info('WSC DataLayer Subscriber: DataLayer extension added to page (begin_checkout)');
+            }
+
+        } catch (\Exception $e) {
+            $this->logger->error('WSC DataLayer Subscriber: Exception in onCheckoutConfirmPageLoaded', [
+                'error' => $e->getMessage(),
+                'trace' => $debugMode ? $e->getTraceAsString() : 'Enable debug mode for stack trace',
+            ]);
+        }
     }
 
     /**
@@ -163,21 +257,48 @@ class DataLayerSubscriber implements EventSubscriberInterface
      */
     public function onCheckoutFinishPageLoaded(CheckoutFinishPageLoadedEvent $event): void
     {
-        $page = $event->getPage();
-        $order = $page->getOrder();
+        $debugMode = $this->isDebugMode($event->getSalesChannelContext()->getSalesChannelId());
 
-        if (!$order) {
-            return;
+        try {
+            $page = $event->getPage();
+            $order = $page->getOrder();
+
+            if (!$order) {
+                $this->logger->error('WSC DataLayer Subscriber: CRITICAL - No order found on CheckoutFinishPageLoadedEvent');
+                return;
+            }
+
+            if ($debugMode) {
+                $this->logger->info('WSC DataLayer Subscriber: CheckoutFinishPageLoadedEvent triggered (PURCHASE)', [
+                    'orderId' => $order->getId(),
+                    'orderNumber' => $order->getOrderNumber(),
+                    'route' => $event->getRequest()->attributes->get('_route'),
+                ]);
+            }
+
+            $dataLayerEvent = $this->dataLayerBuilder->buildPurchaseData(
+                $order,
+                $event->getSalesChannelContext()
+            );
+
+            $dataLayerStruct = new DataLayerStruct(
+                $dataLayerEvent,
+                $event->getRequest()->attributes->get('_route')
+            );
+            $page->addExtension('wscDataLayer', new DataLayerPageExtension($dataLayerStruct));
+
+            if ($debugMode) {
+                $this->logger->info('WSC DataLayer Subscriber: DataLayer extension added to page (PURCHASE)', [
+                    'orderNumber' => $order->getOrderNumber(),
+                    'hasError' => isset($dataLayerEvent['_wsc_error']),
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            $this->logger->critical('WSC DataLayer Subscriber: CRITICAL Exception in onCheckoutFinishPageLoaded (PURCHASE)', [
+                'error' => $e->getMessage(),
+                'trace' => $debugMode ? $e->getTraceAsString() : 'Enable debug mode for stack trace',
+            ]);
         }
-
-        $dataLayerEvent = $this->dataLayerBuilder->buildPurchaseData(
-            $order,
-            $event->getSalesChannelContext()
-        );
-
-        $page->assign([
-            'wscDataLayerEvent' => $dataLayerEvent,
-            'activeRoute' => $event->getRequest()->attributes->get('_route'),
-        ]);
     }
 }

@@ -1,18 +1,61 @@
 {# Einbindung des DataLayers für Google START #}
     {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerGoogle') == "on" %}
 
-        {# DEBUG #}
-        <!-- WSC TEST Debug: {{ wscTestDebug|default('Handler NOT called') }} -->
-        <!-- WSC DataLayer Debug: {{ wscDataLayerDebug|default('No debug info') }} -->
-        <!-- WSC DataLayer Event defined: {{ wscDataLayerEvent is defined ? 'YES' : 'NO' }} -->
+        {% set debugMode = config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') %}
+
+        {# Get DataLayer from PageExtension (Issue #1: Fix PHP 8.2+ deprecation) #}
+        {% set wscDataLayer = page.extension('wscDataLayer') %}
+        {% set wscDataLayerEvent = wscDataLayer ? wscDataLayer.dataLayer.dataLayerEvent : null %}
+        {% set activeRoute = wscDataLayer ? wscDataLayer.dataLayer.activeRoute : 'UNKNOWN' %}
+
+        {# HTML DEBUG Comments #}
+        {% if debugMode %}
+            <!-- WSC DataLayer Debug Mode: ENABLED -->
+            <!-- WSC DataLayer Extension exists: {{ wscDataLayer ? 'YES' : 'NO' }} -->
+            <!-- WSC DataLayer Event defined: {{ wscDataLayerEvent ? 'YES' : 'NO' }} -->
+            {% if wscDataLayerEvent %}
+                <!-- WSC DataLayer Event Type: {{ wscDataLayerEvent.event|default('UNKNOWN') }} -->
+                {% if wscDataLayerEvent._wsc_error is defined %}
+                    <!-- WSC DataLayer ERROR: {{ wscDataLayerEvent._wsc_error }} -->
+                {% endif %}
+            {% endif %}
+        {% endif %}
 
         {# DataLayer data is now built in PHP (Issue #22) #}
-        {% if wscDataLayerEvent is defined %}
+        {% if wscDataLayerEvent %}
             <script>
                 window.dataLayer = window.dataLayer || [];
+
+                {% if debugMode %}
+                // WSC DataLayer Debug Mode ENABLED
+                console.group('🔍 WSC DataLayer Debug - Google');
+                console.log('Event Type:', '{{ wscDataLayerEvent.event|default('UNKNOWN') }}');
+                console.log('Event Data:', {{ wscDataLayerEvent|json_encode(constant('JSON_UNESCAPED_UNICODE') b-or constant('JSON_UNESCAPED_SLASHES'))|raw }});
+                {% if wscDataLayerEvent._wsc_debug is defined %}
+                console.log('Debug Info:', {{ wscDataLayerEvent._wsc_debug|json_encode(constant('JSON_UNESCAPED_UNICODE'))|raw }});
+                {% endif %}
+                {% if wscDataLayerEvent._wsc_error is defined %}
+                console.error('⚠️ WSC DataLayer Error:', '{{ wscDataLayerEvent._wsc_error }}');
+                {% endif %}
+                console.log('DataLayer before push:', window.dataLayer);
+                console.groupEnd();
+                {% endif %}
+
                 window.dataLayer.push({ ecommerce: null });
                 window.dataLayer.push({{ wscDataLayerEvent|json_encode(constant('JSON_UNESCAPED_UNICODE') b-or constant('JSON_UNESCAPED_SLASHES'))|raw }});
+
+                {% if debugMode %}
+                console.log('✅ DataLayer after push:', window.dataLayer);
+                {% endif %}
             </script>
+        {% else %}
+            {% if debugMode %}
+                <script>
+                    console.warn('⚠️ WSC DataLayer: wscDataLayerEvent is NOT defined on this page');
+                    console.log('Active Route:', '{{ activeRoute }}');
+                    console.log('Has Extension:', {{ wscDataLayer ? 'true' : 'false' }});
+                </script>
+            {% endif %}
         {% endif %}
 
     {% endif %}
@@ -21,13 +64,46 @@
 {# Einbindung des DataLayers für Matomo START #}
     {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerMatomo') == "on" %}
 
+        {% set debugMode = config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') %}
+
+        {# Get DataLayer from PageExtension (same as Google) #}
+        {% set wscDataLayer = page.extension('wscDataLayer') %}
+        {% set wscDataLayerEvent = wscDataLayer ? wscDataLayer.dataLayer.dataLayerEvent : null %}
+
         {# DataLayer data is now built in PHP (Issue #22) #}
-        {% if wscDataLayerEvent is defined %}
+        {% if wscDataLayerEvent %}
             <script>
                 window._mtm = window._mtm || [];
+
+                {% if debugMode %}
+                // WSC DataLayer Debug Mode ENABLED (Matomo)
+                console.group('🔍 WSC DataLayer Debug - Matomo');
+                console.log('Event Type:', '{{ wscDataLayerEvent.event|default('UNKNOWN') }}');
+                console.log('Event Data:', {{ wscDataLayerEvent|json_encode(constant('JSON_UNESCAPED_UNICODE') b-or constant('JSON_UNESCAPED_SLASHES'))|raw }});
+                {% if wscDataLayerEvent._wsc_debug is defined %}
+                console.log('Debug Info:', {{ wscDataLayerEvent._wsc_debug|json_encode(constant('JSON_UNESCAPED_UNICODE'))|raw }});
+                {% endif %}
+                {% if wscDataLayerEvent._wsc_error is defined %}
+                console.error('⚠️ WSC DataLayer Error:', '{{ wscDataLayerEvent._wsc_error }}');
+                {% endif %}
+                console.log('Matomo DataLayer before push:', window._mtm);
+                console.groupEnd();
+                {% endif %}
+
                 window._mtm.push({ ecommerce: null });
                 window._mtm.push({{ wscDataLayerEvent|json_encode(constant('JSON_UNESCAPED_UNICODE') b-or constant('JSON_UNESCAPED_SLASHES'))|raw }});
+
+                {% if debugMode %}
+                console.log('✅ Matomo DataLayer after push:', window._mtm);
+                {% endif %}
             </script>
+        {% else %}
+            {% if debugMode %}
+                <script>
+                    console.warn('⚠️ WSC Matomo DataLayer: wscDataLayerEvent is NOT defined on this page');
+                    console.log('Has Extension:', {{ wscDataLayer ? 'true' : 'false' }});
+                </script>
+            {% endif %}
         {% endif %}
 
     {% endif %}
