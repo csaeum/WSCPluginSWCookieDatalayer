@@ -296,15 +296,39 @@
                     const productData = JSON.parse(productJson);
 
                     // Add promotion info to the product
-                    const promotionId = promotionElement.getAttribute('data-promotion-id') ||
-                                       promotionElement.getAttribute('data-promotion-name') ||
-                                       'product_slider';
-                    const promotionName = promotionElement.getAttribute('data-promotion-name') || 'Product Slider';
+                    // PRIMARY: Parse CSS class (BEM syntax: datalayer-promotion-{type}--{identifier})
+                    const cssInfo = parsePromotionClass(promotionElement);
+
+                    let promotionId = promotionElement.getAttribute('data-promotion-id') ||
+                                     promotionElement.getAttribute('data-promotion-name');
+                    let promotionName = promotionElement.getAttribute('data-promotion-name');
+                    let promotionType = promotionElement.getAttribute('data-promotion-type');
+
+                    // Use CSS class info if available
+                    if (cssInfo) {
+                        if (window.__wscDebugMode) console.log('🔧 Found promotion CSS class on click:', cssInfo);
+
+                        if (!promotionId && cssInfo.identifier) {
+                            promotionId = cssInfo.identifier; // e.g., 'bestseller', 'adventskalender'
+                        }
+                        if (!promotionName && cssInfo.identifier) {
+                            // Beautify identifier: 'bestseller' -> 'Bestseller'
+                            promotionName = cssInfo.identifier.charAt(0).toUpperCase() + cssInfo.identifier.slice(1);
+                        }
+                        if (!promotionType) {
+                            promotionType = cssInfo.type; // e.g., 'slider', 'banner'
+                        }
+                    }
+
+                    // Final fallbacks
+                    if (!promotionId) promotionId = 'product_slider';
+                    if (!promotionName) promotionName = 'Product Slider';
 
                     productData.promotion_id = promotionId;
                     productData.promotion_name = promotionName;
                     productData.creative_name = promotionElement.getAttribute('data-creative-name') || promotionName;
-                    productData.creative_slot = promotionElement.getAttribute('data-creative-slot') || 'unknown';
+                    productData.creative_slot = promotionElement.getAttribute('data-creative-slot') ||
+                                               (promotionType ? promotionType + '_slot' : 'unknown');
 
                     if (window.__wscDebugMode) console.log('🔧 Pushing select_promotion event for product:', productData);
 
