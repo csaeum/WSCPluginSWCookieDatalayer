@@ -1,0 +1,191 @@
+{# Promotion Event Tracking - view_promotion & select_promotion #}
+<script>
+(function() {
+    'use strict';
+
+    if (window.__wscDebugMode) console.log('🔧 WSC Promotion Tracking: Loading...');
+
+    // Check if already initialized
+    if (window.__wscPromotionTrackerInitialized) {
+        if (window.__wscDebugMode) console.log('🔧 WSC Promotion Tracking: Already initialized, skipping');
+        return;
+    }
+    window.__wscPromotionTrackerInitialized = true;
+
+    const dataLayer = window.dataLayer || [];
+    const mtmLayer = window._mtm || [];
+
+    // Track which promotions have been viewed (to avoid duplicates)
+    const viewedPromotions = new Set();
+
+    /**
+     * Extract promotion data from element
+     */
+    function getPromotionData(element) {
+        if (window.__wscDebugMode) console.log('🔧 Extracting promotion data from:', element);
+
+        // Try to get data from data attributes
+        const promotionId = element.getAttribute('data-promotion-id') ||
+                           element.getAttribute('data-banner-id') ||
+                           element.id ||
+                           'promotion_' + Math.random().toString(36).substr(2, 9);
+
+        const promotionName = element.getAttribute('data-promotion-name') ||
+                             element.getAttribute('data-banner-name') ||
+                             element.getAttribute('title') ||
+                             element.getAttribute('alt') ||
+                             'Unknown Promotion';
+
+        const creativeName = element.getAttribute('data-creative-name') ||
+                            element.getAttribute('data-banner-creative') ||
+                            promotionName;
+
+        const creativeSlot = element.getAttribute('data-creative-slot') ||
+                            element.getAttribute('data-banner-slot') ||
+                            'unknown_slot';
+
+        return {
+            promotion_id: promotionId,
+            promotion_name: promotionName,
+            creative_name: creativeName,
+            creative_slot: creativeSlot
+        };
+    }
+
+    /**
+     * Push promotion event to dataLayer and mtmLayer
+     */
+    function pushPromotionEvent(eventName, promotionData) {
+        const eventData = {
+            event: eventName,
+            ecommerce: {
+                items: [promotionData]
+            }
+        };
+
+        // Push to Google Analytics / GTM
+        if (Array.isArray(dataLayer)) {
+            dataLayer.push({ ecommerce: null }); // Clear previous ecommerce data
+            dataLayer.push(eventData);
+        }
+
+        // Push to Matomo
+        if (Array.isArray(mtmLayer)) {
+            mtmLayer.push({ ecommerce: null });
+            mtmLayer.push(eventData);
+        }
+
+        if (window.__wscDebugMode) {
+            console.log('🎨 WSC Promotion Event pushed:', eventName, eventData);
+        }
+    }
+
+    /**
+     * Register view_promotion listener (using Intersection Observer)
+     */
+    function registerViewPromotionListener() {
+        if (window.__wscDebugMode) console.log('🔧 Registering view_promotion listener');
+
+        // Check if Intersection Observer is supported
+        if (!('IntersectionObserver' in window)) {
+            if (window.__wscDebugMode) console.warn('🔧 IntersectionObserver not supported, view_promotion tracking disabled');
+            return;
+        }
+
+        // Find all promotion elements
+        const promotionSelectors = [
+            '[data-promotion-tracking]',
+            '[data-banner-tracking]',
+            '.promotion-banner',
+            '.cms-element-image-slider[data-promotion="true"]',
+            '.banner-slider[data-promotion="true"]'
+        ];
+
+        const observer = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                // Element is visible (at least 50% in viewport)
+                if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+                    const element = entry.target;
+                    const promotionData = getPromotionData(element);
+                    const uniqueKey = promotionData.promotion_id;
+
+                    // Check if already viewed
+                    if (viewedPromotions.has(uniqueKey)) {
+                        if (window.__wscDebugMode) console.log('🔧 Promotion already viewed, skipping:', uniqueKey);
+                        return;
+                    }
+
+                    // Mark as viewed
+                    viewedPromotions.add(uniqueKey);
+
+                    if (window.__wscDebugMode) console.log('🔧 Promotion viewed:', promotionData);
+
+                    pushPromotionEvent('view_promotion', promotionData);
+
+                    // Stop observing this element (it's been viewed)
+                    observer.unobserve(element);
+                }
+            });
+        }, {
+            threshold: 0.5 // Trigger when 50% of the element is visible
+        });
+
+        // Observe all promotion elements
+        const promotionElements = document.querySelectorAll(promotionSelectors.join(', '));
+
+        if (promotionElements.length === 0) {
+            if (window.__wscDebugMode) console.log('🔧 No promotion elements found on this page');
+            return;
+        }
+
+        if (window.__wscDebugMode) console.log('🔧 Found', promotionElements.length, 'promotion elements to track');
+
+        promotionElements.forEach(function(element) {
+            observer.observe(element);
+        });
+    }
+
+    /**
+     * Register select_promotion listener (click tracking)
+     */
+    function registerSelectPromotionListener() {
+        if (window.__wscDebugMode) console.log('🔧 Registering select_promotion listener');
+
+        document.addEventListener('click', function(event) {
+            const target = event.target instanceof Element ? event.target : null;
+            if (!target) return;
+
+            // Find promotion element
+            const promotionElement = target.closest(
+                '[data-promotion-tracking], [data-banner-tracking], .promotion-banner, .banner-link[data-promotion="true"]'
+            );
+
+            if (!promotionElement) return;
+
+            if (window.__wscDebugMode) console.log('🔧 Promotion clicked:', promotionElement);
+
+            const promotionData = getPromotionData(promotionElement);
+
+            if (window.__wscDebugMode) console.log('🔧 Pushing select_promotion event:', promotionData);
+
+            pushPromotionEvent('select_promotion', promotionData);
+        }, true);
+    }
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        if (window.__wscDebugMode) console.log('🔧 DOM is still loading, waiting for DOMContentLoaded...');
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.__wscDebugMode) console.log('🔧 DOMContentLoaded fired, initializing promotion listeners...');
+            registerViewPromotionListener();
+            registerSelectPromotionListener();
+            if (window.__wscDebugMode) console.log('✅ WSC Promotion listeners registered successfully!');
+        });
+    } else {
+        if (window.__wscDebugMode) console.log('🔧 DOM already loaded, initializing promotion listeners immediately...');
+        registerViewPromotionListener();
+        registerSelectPromotionListener();
+        if (window.__wscDebugMode) console.log('✅ WSC Promotion listeners registered successfully!');
+    }
+})();
+</script>

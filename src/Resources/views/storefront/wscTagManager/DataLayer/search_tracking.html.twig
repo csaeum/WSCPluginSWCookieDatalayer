@@ -1,0 +1,94 @@
+{# Search Event Tracking #}
+<script>
+(function() {
+    'use strict';
+
+    if (window.__wscDebugMode) console.log('🔧 WSC Search Tracking: Loading...');
+
+    // Check if already initialized
+    if (window.__wscSearchTrackerInitialized) {
+        if (window.__wscDebugMode) console.log('🔧 WSC Search Tracking: Already initialized, skipping');
+        return;
+    }
+    window.__wscSearchTrackerInitialized = true;
+
+    const dataLayer = window.dataLayer || [];
+    const mtmLayer = window._mtm || [];
+
+    /**
+     * Push search event to dataLayer and mtmLayer
+     */
+    function pushSearchEvent(searchTerm) {
+        const eventData = {
+            event: 'search',
+            search_term: searchTerm
+        };
+
+        // Push to Google Analytics / GTM
+        if (Array.isArray(dataLayer)) {
+            dataLayer.push(eventData);
+        }
+
+        // Push to Matomo
+        if (Array.isArray(mtmLayer)) {
+            mtmLayer.push(eventData);
+        }
+
+        if (window.__wscDebugMode) {
+            console.log('🔍 WSC Search Event pushed:', eventData);
+        }
+    }
+
+    /**
+     * Register search form listener
+     */
+    function registerSearchListener() {
+        if (window.__wscDebugMode) console.log('🔧 Registering search listener');
+
+        // Listen for search form submissions
+        document.addEventListener('submit', function(event) {
+            const form = event.target;
+            if (!(form instanceof HTMLFormElement)) return;
+
+            // Check if it's a search form
+            const isSearchForm = form.classList.contains('search-form') ||
+                                form.classList.contains('header-search-form') ||
+                                form.action.includes('/search') ||
+                                form.querySelector('input[name="search"]');
+
+            if (!isSearchForm) return;
+
+            // Get search term
+            const searchInput = form.querySelector('input[type="search"], input[name="search"]');
+            if (!searchInput) {
+                if (window.__wscDebugMode) console.warn('🔧 Search form found but no search input field');
+                return;
+            }
+
+            const searchTerm = searchInput.value.trim();
+            if (!searchTerm) {
+                if (window.__wscDebugMode) console.warn('🔧 Search submitted with empty search term');
+                return;
+            }
+
+            if (window.__wscDebugMode) console.log('🔧 Search form submitted with term:', searchTerm);
+
+            pushSearchEvent(searchTerm);
+        }, true);
+    }
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        if (window.__wscDebugMode) console.log('🔧 DOM is still loading, waiting for DOMContentLoaded...');
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.__wscDebugMode) console.log('🔧 DOMContentLoaded fired, initializing search listener...');
+            registerSearchListener();
+            if (window.__wscDebugMode) console.log('✅ WSC Search listener registered successfully!');
+        });
+    } else {
+        if (window.__wscDebugMode) console.log('🔧 DOM already loaded, initializing search listener immediately...');
+        registerSearchListener();
+        if (window.__wscDebugMode) console.log('✅ WSC Search listener registered successfully!');
+    }
+})();
+</script>

@@ -8,10 +8,20 @@
     {% endif %}
     {# Einbindung von Cookie Consent ENDE #}
 
-    {# Add to Cart / Remove from Cart / Wishlist Event Tracking (auf ALLEN Seiten) #}
+    {# Add to Cart / Remove from Cart / Wishlist / Select Item Event Tracking (auf ALLEN Seiten) #}
     {# Muss außerhalb der Whitelist sein, damit OffCanvas-Events überall funktionieren #}
     {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayer') == "on" %}
         {% sw_include '@WscSwCookieDataLayer/storefront/wscTagManager/DataLayer/add_to_cart.html.twig' %}
+    {% endif %}
+
+    {# Search Event Tracking (auf ALLEN Seiten) #}
+    {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayer') == "on" %}
+        {% sw_include '@WscSwCookieDataLayer/storefront/wscTagManager/DataLayer/search_tracking.html.twig' %}
+    {% endif %}
+
+    {# Promotion Event Tracking - view_promotion & select_promotion (auf ALLEN Seiten) #}
+    {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayer') == "on" %}
+        {% sw_include '@WscSwCookieDataLayer/storefront/wscTagManager/DataLayer/promotion_tracking.html.twig' %}
     {% endif %}
 
     {# DataLayer Event Tracking wird jetzt in base.html.twig geladen (Issue #22) #}

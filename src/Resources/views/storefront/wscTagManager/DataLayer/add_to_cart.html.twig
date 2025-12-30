@@ -348,6 +348,43 @@
         });
     }
 
+    /**
+     * Register select_item listener (product click in listing)
+     */
+    function registerSelectItemListener() {
+        if (window.__wscDebugMode) console.log('🔧 Registering select_item listener');
+
+        document.addEventListener('click', function(event) {
+            const target = event.target instanceof Element ? event.target : null;
+            if (!target) return;
+
+            // Find product link (but NOT the add-to-cart button!)
+            const productLink = target.closest('.product-name, .product-image-link, a.product-link, [data-product-link]');
+            if (!productLink) return;
+
+            // Skip if it's an add-to-cart button
+            if (target.closest('.btn-buy, [data-add-to-cart]')) return;
+
+            if (window.__wscDebugMode) console.log('🔧 Product link clicked:', productLink);
+
+            const productData = getProductDataFromElement(productLink);
+            if (!productData || !productData.item_id) {
+                if (window.__wscDebugMode) console.warn('🔧 No product data found for select_item');
+                return;
+            }
+
+            if (window.__wscDebugMode) console.log('🔧 Pushing select_item event with data:', productData);
+
+            pushEvent('select_item', {
+                item_list_id: productData.item_list_id || 'unknown',
+                item_list_name: productData.item_list_name || 'Unknown List',
+                items: [productData]
+            });
+
+            if (window.__wscDebugMode) console.log('✅ select_item event pushed successfully!');
+        }, true);
+    }
+
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {
         if (window.__wscDebugMode) console.log('🔧 DOM is still loading, waiting for DOMContentLoaded...');
@@ -357,7 +394,8 @@
             installAjaxInterceptor();
             registerRemoveFromCartListener();
             registerWishlistListener();
-            if (window.__wscDebugMode) console.log('✅ All WSC Add-to-Cart listeners registered successfully!');
+            registerSelectItemListener();
+            if (window.__wscDebugMode) console.log('✅ All WSC DataLayer listeners registered successfully!');
         });
     } else {
         if (window.__wscDebugMode) console.log('🔧 DOM already loaded, initializing listeners immediately...');
@@ -365,7 +403,8 @@
         installAjaxInterceptor();
         registerRemoveFromCartListener();
         registerWishlistListener();
-        if (window.__wscDebugMode) console.log('✅ All WSC Add-to-Cart listeners registered successfully!');
+        registerSelectItemListener();
+        if (window.__wscDebugMode) console.log('✅ All WSC DataLayer listeners registered successfully!');
     }
 })();
 </script>
