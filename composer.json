@@ -1,7 +1,7 @@
 {
   "name": "wsc/sw-cookie-data-layer",
-  "version": "6.7.0",
-  "description": "WSC Cookie Consent + DataLayer + Tag Manager (GTM / Matomo Tag Manager)",
+  "version": "6.7.5.1",
+  "description": "WSC | CookieConsent + DataLayer + TagManager",
   "type": "shopware-platform-plugin",
   "license": "GPL-3.0-or-later",
   "authors": [
@@ -17,14 +17,14 @@
   },
   "extra": {
     "description": {
-      "de-DE": "OpenSource Cookie Consent mit Tag Manager und DataLayer",
-      "en-GB": "OpenSource Cookie Consent mit Tag Manager und DataLayer",
-      "fr-FR": "OpenSource Cookie Consent mit Tag Manager und DataLayer"
+      "de-DE": "OpenSource CookieConsent, DataLayer & TagManager",
+      "en-GB": "OpenSource CookieConsent, DataLayer & TagManager",
+      "fr-FR": "OpenSource CookieConsent, DataLayer & TagManager"
     },
     "label": {
-      "de-DE": "WSC Cookie Consent + DataLayer + Tag Manager (GTM / Matomo Tag Manager)",
-      "en-GB": "WSC Cookie Consent + DataLayer + Tag Manager (GTM / Matomo Tag Manager)",
-      "fr-FR": "WSC Cookie Consent + DataLayer + Tag Manager (GTM / Matomo Tag Manager)"
+      "de-DE": "WSC | CookieConsent + DataLayer + TagManager",
+      "en-GB": "WSC | CookieConsent + DataLayer + TagManager",
+      "fr-FR": "WSC | CookieConsent + DataLayer + TagManager"
     },
     "shopware-plugin-class": "WSC\\SWCookieDataLayer\\WscSwCookieDataLayer",
     "supportLink": {
@@ -39,6 +39,6 @@
     }
   },
   "require": {
-    "shopware/core": "^v6.7.0.0"
+    "shopware/core": "~6.5.0|~6.6.0|~6.7.0"
   }
 }

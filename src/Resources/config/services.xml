@@ -14,5 +14,11 @@
         <service id="WSC\SWCookieDataLayer\Subscriber\DataLayerSubscriber">
             <tag name="kernel.event_subscriber"/>
         </service>
+
+        <!-- Twig Extension for Product Data JSON -->
+        <service id="WSC\SWCookieDataLayer\Twig\ProductDataExtension">
+            <argument type="service" id="request_stack"/>
+            <tag name="twig.extension"/>
+        </service>
     </services>
 </container>

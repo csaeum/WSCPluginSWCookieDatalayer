@@ -1,450 +1,238 @@
-{# Add to Cart Event Tracking - Inline JavaScript #}
+{# Add to Cart Event Tracking - Simplified with Backend Data #}
 <script>
 (function() {
     'use strict';
 
+    // Set debug mode from backend config
+    window.__wscDebugMode = {{ config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') ? 'true' : 'false' }};
+
+    if (window.__wscDebugMode) console.log('🔧 WSC Add-to-Cart Script: Loading...');
+
     // Check if already initialized
     if (window.__wscCartTrackerInitialized) {
+        if (window.__wscDebugMode) console.log('🔧 WSC Add-to-Cart Script: Already initialized, skipping');
         return;
     }
     window.__wscCartTrackerInitialized = true;
+    if (window.__wscDebugMode) console.log('🔧 WSC Add-to-Cart Script: Initialized');
 
     const dataLayer = window.dataLayer || [];
     const mtmLayer = window._mtm || [];
 
-    // Product context store for mapping product IDs to names and numbers
-    if (!window.__wscProductContext) {
-        window.__wscProductContext = {
-            byId: {},           // Internal ID -> item_name
-            byNumber: {},       // Product number -> item_name
-            idToNumber: {},     // Internal ID -> Product number
-            last: null
-        };
+    // Store last clicked product for fallback
+    let lastClickedProduct = null;
+
+    /**
+     * Get product data from data-product-info attribute
+     */
+    function getProductDataFromElement(element) {
+        if (window.__wscDebugMode) console.log('🔧 Getting product data from element:', element);
+
+        const container = element.closest('[data-product-info], .product-box, .product-detail, .buy-widget');
+        if (window.__wscDebugMode) console.log('🔧 Found container:', container);
+
+        let dataEl = null;
+
+        // Try to find data-product-info in the container or its children
+        if (container) {
+            dataEl = container.querySelector('[data-product-info]') || (container.hasAttribute('data-product-info') ? container : null);
+            if (window.__wscDebugMode) console.log('🔧 Found data element in container:', dataEl);
+        }
+
+        // Fallback: Search globally for .wsc-product-data-container (for product detail page)
+        if (!dataEl) {
+            if (window.__wscDebugMode) console.log('🔧 No data element in container, searching globally for .wsc-product-data-container');
+            dataEl = document.querySelector('.wsc-product-data-container[data-product-info]');
+            if (window.__wscDebugMode) console.log('🔧 Found global data element:', dataEl);
+        }
+
+        // Fallback: Search globally for any [data-product-info] (last resort)
+        if (!dataEl) {
+            if (window.__wscDebugMode) console.log('🔧 No .wsc-product-data-container found, searching for any [data-product-info]');
+            dataEl = document.querySelector('[data-product-info]');
+            if (window.__wscDebugMode) console.log('🔧 Found any data element:', dataEl);
+        }
+
+        if (!dataEl) {
+            if (window.__wscDebugMode) console.warn('🔧 No data-product-info element found anywhere');
+            return null;
+        }
+
+        const dataJson = dataEl.getAttribute('data-product-info');
+        if (window.__wscDebugMode) console.log('🔧 data-product-info JSON:', dataJson);
+
+        if (!dataJson) {
+            if (window.__wscDebugMode) console.warn('🔧 data-product-info attribute is empty');
+            return null;
+        }
+
+        try {
+            const parsed = JSON.parse(dataJson);
+            if (window.__wscDebugMode) console.log('🔧 Parsed product data:', parsed);
+            return parsed;
+        } catch (e) {
+            if (window.__wscDebugMode) console.error('🔧 WSC DataLayer: Failed to parse product data', e);
+            return null;
+        }
     }
 
-    // Helper: Resolve currency from dataLayer
-    function resolveCurrency() {
+    /**
+     * Get currency from existing dataLayer entries
+     */
+    function getCurrency() {
         for (let i = dataLayer.length - 1; i >= 0; i--) {
             const entry = dataLayer[i];
             if (entry && entry.ecommerce && entry.ecommerce.currency) {
                 return entry.ecommerce.currency;
             }
         }
-        return '';
+        return 'EUR'; // Fallback
     }
 
-    // Helper: Resolve item name from DOM
-    function resolveItemName(container, fallbackElement) {
-        // First try: hidden input field "product-name"
-        if (container) {
-            const hiddenInput = container.querySelector('input[name="product-name"]');
-            if (hiddenInput && hiddenInput.value) {
-                return hiddenInput.value.trim();
-            }
-        }
-
-        // Second try: product name link or label
-        if (container) {
-            const nameEl = container.querySelector(
-                '.product-name, .product-box-title, .product-detail-name, .search-suggest-product-name, ' +
-                '.cart-item-product-name, .cart-item-label, .line-item-label, .offcanvas-cart-item-name, ' +
-                '.cart-item-link, .line-item-name, a.cart-item-product-link'
-            );
-            if (nameEl) {
-                const text = (nameEl.textContent || '').trim();
-                if (text) {
-                    return text;
-                }
-            }
-        }
-
-        // Third try: look for any link in the container
-        if (container) {
-            const linkEl = container.querySelector('a[title]:not(.btn):not([data-line-item-remove])');
-            if (linkEl && linkEl.getAttribute('title')) {
-                const title = linkEl.getAttribute('title').trim();
-                if (title) {
-                    return title;
-                }
-            }
-        }
-
-        // Last resort: fallback element (but not if it's a button!)
-        if (fallbackElement && !fallbackElement.matches('button, .btn')) {
-            const text = fallbackElement.textContent || '';
-            return text.trim();
-        }
-
-        return '';
-    }
-
-    // Helper: Resolve product number (Artikelnummer) from data-product-number attribute or itemprop="sku"
-    function resolveProductNumber(container, internalId) {
-        if (!container) {
-            return internalId || '';
-        }
-
-        let productNumber = '';
-
-        // HIGHEST PRIORITY: Try to find .product-detail-ordernumber on product detail page
-        const ordernumberElement = document.querySelector('.product-detail-ordernumber');
-        if (ordernumberElement && ordernumberElement.textContent) {
-            productNumber = ordernumberElement.textContent.trim();
-            if (productNumber) {
-                return productNumber;
-            }
-        }
-
-        // Second try: Find data-product-number in child elements (our <span> tag)
-        const numberElement = container.querySelector('[data-product-number]');
-        if (numberElement) {
-            productNumber = numberElement.dataset?.productNumber ||
-                           numberElement.getAttribute('data-product-number') || '';
-            if (productNumber.trim()) {
-                return productNumber.trim();
-            }
-        }
-
-        // Third try: data-product-number attribute on container itself
-        productNumber = container.dataset?.productNumber ||
-                       container.getAttribute('data-product-number') || '';
-        if (productNumber.trim()) {
-            return productNumber.trim();
-        }
-
-        // NEW: Extract SKU from .line-item-product-number element (OffCanvas)
-        const lineItemNumberEl = container.querySelector('.line-item-product-number');
-        if (lineItemNumberEl) {
-            const text = (lineItemNumberEl.textContent || '').trim();
-            // Extract SKU from "Produkt-Nr.: SWDEMO10001" or similar
-            const match = text.match(/:\s*([A-Z0-9.-]+)/);
-            if (match) {
-                productNumber = match[1];
-                if (productNumber) {
-                    return productNumber;
-                }
-            }
-        }
-
-        // NEW: Extract SKU from link href (OffCanvas)
-        const link = container.querySelector('.line-item-label, .line-item-img-link');
-        if (link) {
-            const href = link.getAttribute('href') || '';
-            const urlParts = href.split('/');
-            const lastPart = urlParts[urlParts.length - 1];
-            // SKU is usually in format like SWDEMO10001
-            if (lastPart && /^[A-Z0-9.-]+$/.test(lastPart)) {
-                return lastPart;
-            }
-        }
-
-        // Fourth try: look for data-product-number in parent container
-        const parentBuyBox = container.closest('.product-detail-buy, .cms-element-buy-box, .buy-widget, .product-detail, body');
-        if (parentBuyBox) {
-            const numberInParent = parentBuyBox.querySelector('[data-product-number]');
-            if (numberInParent) {
-                productNumber = numberInParent.dataset?.productNumber ||
-                               numberInParent.getAttribute('data-product-number') || '';
-                if (productNumber.trim()) {
-                    return productNumber.trim();
-                }
-            }
-        }
-
-        // Fifth try: look for data-product-number in parent elements
-        const parentWithNumber = container.closest('[data-product-number]');
-        if (parentWithNumber) {
-            productNumber = parentWithNumber.dataset.productNumber ||
-                           parentWithNumber.getAttribute('data-product-number') || '';
-            if (productNumber.trim()) {
-                return productNumber.trim();
-            }
-        }
-
-        // Sixth try: find itemprop="sku" element (generic fallback)
-        const skuElement = container.querySelector('[itemprop="sku"]');
-        if (skuElement && skuElement.textContent) {
-            productNumber = skuElement.textContent.trim();
-            if (productNumber) {
-                return productNumber;
-            }
-        }
-
-        // Seventh try: look for itemprop="sku" in parent buy box
-        if (parentBuyBox) {
-            const skuInParent = parentBuyBox.querySelector('[itemprop="sku"]');
-            if (skuInParent && skuInParent.textContent) {
-                productNumber = skuInParent.textContent.trim();
-                if (productNumber) {
-                    return productNumber;
-                }
-            }
-        }
-
-        // Fallback: use internal ID if no SKU was found
-        return internalId || '';
-    }
-
-    // Helper: Build item from element
-    function buildItemFromElement(element) {
-        const container = element.closest('[data-product-id], [data-product-number], .product-box, .product-detail-main, .search-suggest-product, .card, form[action*="checkout/line-item/add"]');
-        const internalId = container?.dataset?.productId || container?.getAttribute('data-product-id') || '';
-        const itemId = resolveProductNumber(container, internalId);
-        const itemName = resolveItemName(container, element);
-
-        return {
-            item_id: itemId,
-            item_name: itemName,
-            quantity: 1
+    /**
+     * Push event to dataLayer and mtmLayer
+     */
+    function pushEvent(eventName, ecommerceData) {
+        const eventData = {
+            event: eventName,
+            ecommerce: ecommerceData
         };
-    }
 
-    // Helper: Push event to dataLayer and mtmLayer
-    function pushEvent(eventName, payload) {
-        const eventPayload = Object.assign({ event: eventName }, payload);
-
+        // Clear ecommerce object first (Google Best Practice)
         if (Array.isArray(dataLayer)) {
             dataLayer.push({ ecommerce: null });
-            dataLayer.push(eventPayload);
+            dataLayer.push(eventData);
         }
 
         if (Array.isArray(mtmLayer)) {
             mtmLayer.push({ ecommerce: null });
-            mtmLayer.push(eventPayload);
+            mtmLayer.push(eventData);
         }
     }
 
-    // Helper: Extract item from request body
-    function extractItemFromRequest(body, url) {
-        let itemId = '';
-        let quantity = 1;
-
-        if (body instanceof FormData) {
-            for (const [key, value] of body.entries()) {
-                if (!itemId && key.endsWith('[id]')) {
-                    itemId = String(value);
-                }
-                if (key.endsWith('[quantity]')) {
-                    const qty = parseFloat(String(value));
-                    if (!Number.isNaN(qty)) {
-                        quantity = qty;
-                    }
-                }
-            }
-        } else if (typeof body === 'string') {
-            const params = new URLSearchParams(body);
-            for (const [key, value] of params.entries()) {
-                if (!itemId && key.endsWith('[id]')) {
-                    itemId = String(value);
-                }
-                if (key.endsWith('[quantity]')) {
-                    const qty = parseFloat(String(value));
-                    if (!Number.isNaN(qty)) {
-                        quantity = qty;
-                    }
-                }
-            }
-        }
-
-        if (!itemId && url.includes('?')) {
-            const params = new URLSearchParams(url.split('?')[1]);
-            for (const [key, value] of params.entries()) {
-                if (!itemId && key.endsWith('[id]')) {
-                    itemId = String(value);
-                }
-                if (key.endsWith('[quantity]')) {
-                    const qty = parseFloat(String(value));
-                    if (!Number.isNaN(qty)) {
-                        quantity = qty;
-                    }
-                }
-            }
-        }
-
-        return {
-            item_id: itemId,
-            item_name: '',
-            quantity: quantity
-        };
+    /**
+     * Calculate value (price * quantity)
+     */
+    function calculateValue(productData, quantity) {
+        if (!productData.price) return 0;
+        return productData.price * quantity;
     }
 
-    // Helper: Push add_to_cart event
-    function pushAddToCart(item) {
-        const context = window.__wscProductContext || {};
-        const byId = context.byId || {};
-        const byNumber = context.byNumber || {};
-        const idToNumber = context.idToNumber || {};
-        const last = context.last || null;
+    /**
+     * Register click listener for add-to-cart buttons
+     */
+    function registerAddToCartListener() {
+        if (window.__wscDebugMode) console.log('🔧 Registering click listener for add-to-cart buttons');
 
-        // If we have an internal ID, try to convert it to product number
-        if (item.item_id && idToNumber[item.item_id]) {
-            item.item_id = idToNumber[item.item_id];
-        }
-
-        // Fallback: use last clicked product ID
-        if (!item.item_id && last && last.item_id) {
-            item.item_id = last.item_id;
-        }
-
-        // Try to resolve item name from context
-        if (!item.item_name) {
-            item.item_name = byId[item.item_id] || byNumber[item.item_id] || (last ? last.item_name : '') || '';
-        }
-
-        if (!item.item_id && !item.item_name) {
-            return;
-        }
-
-        const currency = resolveCurrency();
-
-        const payload = {
-            event: 'add_to_cart',
-            ecommerce: {
-                currency: currency,
-                items: [item]
-            }
-        };
-
-        if (Array.isArray(dataLayer)) {
-            dataLayer.push({ ecommerce: null });
-            dataLayer.push(payload);
-        }
-
-        if (Array.isArray(mtmLayer)) {
-            mtmLayer.push({ ecommerce: null });
-            mtmLayer.push(payload);
-        }
-    }
-
-    // 1. Collect product contexts from page
-    function collectProductContexts() {
-        const context = window.__wscProductContext;
-
-        // Collect from data attributes
-        const elements = document.querySelectorAll('[data-product-id], [data-product-number]');
-        elements.forEach(function(element) {
-            const item = buildItemFromElement(element);
-            if (!item.item_name) {
-                return;
-            }
-
-            if (item.item_id) {
-                context.byNumber[item.item_id] = item.item_name;
-            }
-
-            const number = element.dataset?.productNumber || '';
-            if (number) {
-                context.byNumber[number] = item.item_name;
-            }
-        });
-
-        // Collect from buy forms
-        const forms = document.querySelectorAll('form[action*="checkout/line-item/add"]');
-        forms.forEach(function(form) {
-            // Get internal ID from form
-            const internalIdInput = form.querySelector('input[name*="[id]"]');
-            const internalId = internalIdInput ? internalIdInput.value : '';
-
-            // Get product name from hidden input
-            const nameInput = form.querySelector('input[name="product-name"]');
-            const productName = nameInput ? nameInput.value : '';
-
-            // Get product number from data-product-number attribute
-            const productBox = form.closest('.card, .product-box, .card-body');
-            let productNumber = '';
-
-            if (productBox) {
-                // First: Look for <span data-product-number> inside the box
-                const numberElement = productBox.querySelector('[data-product-number]');
-                if (numberElement) {
-                    productNumber = numberElement.dataset?.productNumber ||
-                                  numberElement.getAttribute('data-product-number') || '';
-                }
-
-                // Fallback: Check if box itself has the attribute
-                if (!productNumber) {
-                    productNumber = productBox.dataset?.productNumber ||
-                                  productBox.getAttribute('data-product-number') || '';
-                }
-            }
-
-            // Store mappings
-            if (internalId && productNumber) {
-                context.idToNumber[internalId] = productNumber;
-            }
-
-            if (productNumber && productName) {
-                context.byNumber[productNumber] = productName;
-            }
-
-            if (internalId && productName) {
-                context.byId[internalId] = productName;
-            }
-        });
-    }
-
-    // 2. Register click listener on add-to-cart buttons
-    function registerAddToCartContextListener() {
         document.addEventListener('click', function(event) {
             const target = event.target instanceof Element ? event.target : null;
-            if (!target) {
+            if (!target) return;
+
+            const button = target.closest('.btn-buy, [data-add-to-cart], button[data-product-id]');
+            if (!button) return;
+
+            if (window.__wscDebugMode) console.log('🔧 Add-to-cart button clicked!', button);
+
+            const productData = getProductDataFromElement(button);
+            if (!productData || !productData.item_id) {
+                if (window.__wscDebugMode) console.warn('🔧 No valid product data found on click');
                 return;
             }
 
-            const button = target.closest('.btn-buy, [data-add-to-cart], form[action*="checkout/line-item/add"] button');
-            if (!button) {
-                return;
-            }
-
-            const form = button.closest('form[action*="checkout/line-item/add"]');
-            const context = window.__wscProductContext;
-
-            // Get internal ID from form
-            let internalId = '';
-            if (form) {
-                const internalIdInput = form.querySelector('input[name*="[id]"]');
-                internalId = internalIdInput ? internalIdInput.value : '';
-            }
-
-            // Build item from element
-            const item = buildItemFromElement(button);
-            if (!item.item_id && !item.item_name) {
-                return;
-            }
-
-            // Store last clicked item
-            context.last = item;
-
-            // Store mapping of internal ID to product number
-            if (internalId && item.item_id && internalId !== item.item_id) {
-                context.idToNumber[internalId] = item.item_id;
-            }
-
-            // Store item name mappings
-            if (item.item_id && item.item_name) {
-                context.byNumber[item.item_id] = item.item_name;
-            }
-
-            if (internalId && item.item_name) {
-                context.byId[internalId] = item.item_name;
-            }
+            // Store for potential AJAX fallback
+            lastClickedProduct = productData;
+            if (window.__wscDebugMode) console.log('🔧 Stored product data for AJAX request:', lastClickedProduct);
         }, true);
     }
 
-    // 3. Install AJAX interceptors
-    function installCartRequestInterceptor() {
+    /**
+     * Extract quantity from FormData or request body
+     */
+    function extractQuantityFromRequest(requestBody) {
+        if (window.__wscDebugMode) console.log('🔧 Extracting quantity from request body:', requestBody);
+
+        try {
+            // If it's FormData, iterate through it
+            if (requestBody instanceof FormData) {
+                for (const [key, value] of requestBody.entries()) {
+                    if (window.__wscDebugMode) console.log('🔧 FormData entry:', key, '=', value);
+                    if (key.includes('[quantity]')) {
+                        const qty = parseInt(value, 10);
+                        if (!isNaN(qty) && qty > 0) {
+                            if (window.__wscDebugMode) console.log('🔧 Found quantity in FormData:', qty);
+                            return qty;
+                        }
+                    }
+                }
+            }
+
+            // If it's a string (URL-encoded), parse it
+            if (typeof requestBody === 'string') {
+                const params = new URLSearchParams(requestBody);
+                for (const [key, value] of params.entries()) {
+                    if (window.__wscDebugMode) console.log('🔧 URLSearchParams entry:', key, '=', value);
+                    if (key.includes('[quantity]')) {
+                        const qty = parseInt(value, 10);
+                        if (!isNaN(qty) && qty > 0) {
+                            if (window.__wscDebugMode) console.log('🔧 Found quantity in URLSearchParams:', qty);
+                            return qty;
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            if (window.__wscDebugMode) console.warn('🔧 Error extracting quantity:', e);
+        }
+
+        if (window.__wscDebugMode) console.log('🔧 No quantity found, defaulting to 1');
+        return 1; // Default quantity
+    }
+
+    /**
+     * Install AJAX interceptor for add-to-cart requests
+     */
+    function installAjaxInterceptor() {
+        // Store request body for fetch requests
+        let lastRequestBody = null;
+
         // Intercept fetch()
         const originalFetch = window.fetch;
         if (typeof originalFetch === 'function') {
             window.fetch = async function(...args) {
+                const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || '';
+
+                // Store request body if it's an add-to-cart request
+                if (url.includes('checkout/line-item/add') && args[1] && args[1].body) {
+                    lastRequestBody = args[1].body;
+                    if (window.__wscDebugMode) console.log('🔧 Stored fetch request body:', lastRequestBody);
+                }
+
                 const response = await originalFetch(...args);
 
-                const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || '';
-                if (url && url.includes('checkout/line-item/add') && response && response.ok) {
-                    const init = args[1] || {};
-                    const payload = extractItemFromRequest(init.body, url);
-                    if (payload) {
-                        pushAddToCart(payload);
+                if (url.includes('checkout/line-item/add') && response && response.ok) {
+                    if (window.__wscDebugMode) console.log('🔧 AJAX add-to-cart detected (fetch)! URL:', url);
+
+                    // Use last clicked product data
+                    if (lastClickedProduct) {
+                        // Extract quantity from request body
+                        const quantity = extractQuantityFromRequest(lastRequestBody);
+
+                        const item = Object.assign({}, lastClickedProduct, { quantity: quantity });
+
+                        if (window.__wscDebugMode) console.log('🔧 Pushing add_to_cart event with data:', item);
+
+                        pushEvent('add_to_cart', {
+                            currency: item.currency || getCurrency(),
+                            value: calculateValue(item, quantity),
+                            items: [item]
+                        });
+
+                        if (window.__wscDebugMode) console.log('✅ add_to_cart event pushed successfully!');
+
+                        // Reset
+                        lastRequestBody = null;
+                    } else {
+                        if (window.__wscDebugMode) console.warn('🔧 No last clicked product stored!');
                     }
                 }
 
@@ -461,12 +249,36 @@
 
         const originalSend = XMLHttpRequest.prototype.send;
         XMLHttpRequest.prototype.send = function(body) {
+            // Store request body for add-to-cart requests
+            const url = this.__wscUrl || '';
+            if (url.includes('checkout/line-item/add')) {
+                this.__wscRequestBody = body;
+                if (window.__wscDebugMode) console.log('🔧 Stored XMLHttpRequest body:', body);
+            }
+
             this.addEventListener('load', function() {
                 const url = this.__wscUrl || '';
-                if (url && url.includes('checkout/line-item/add') && this.status >= 200 && this.status < 300) {
-                    const payload = extractItemFromRequest(body, url);
-                    if (payload) {
-                        pushAddToCart(payload);
+                if (url.includes('checkout/line-item/add') && this.status >= 200 && this.status < 300) {
+                    if (window.__wscDebugMode) console.log('🔧 AJAX add-to-cart detected (XMLHttpRequest)! URL:', url);
+
+                    // Use last clicked product data
+                    if (lastClickedProduct) {
+                        // Extract quantity from request body
+                        const quantity = extractQuantityFromRequest(this.__wscRequestBody);
+
+                        const item = Object.assign({}, lastClickedProduct, { quantity: quantity });
+
+                        if (window.__wscDebugMode) console.log('🔧 Pushing add_to_cart event with data:', item);
+
+                        pushEvent('add_to_cart', {
+                            currency: item.currency || getCurrency(),
+                            value: calculateValue(item, quantity),
+                            items: [item]
+                        });
+
+                        if (window.__wscDebugMode) console.log('✅ add_to_cart event pushed successfully!');
+                    } else {
+                        if (window.__wscDebugMode) console.warn('🔧 No last clicked product stored!');
                     }
                 }
             });
@@ -474,29 +286,24 @@
         };
     }
 
-    // 4. Register remove_from_cart listener
+    /**
+     * Register remove-from-cart listener
+     */
     function registerRemoveFromCartListener() {
-        // Listen for form submissions
         document.addEventListener('submit', function(event) {
             const form = event.target;
-            if (!(form instanceof HTMLFormElement)) {
-                return;
-            }
+            if (!(form instanceof HTMLFormElement)) return;
 
             const action = form.getAttribute('action') || '';
-            if (!action.includes('checkout/line-item/delete') && !action.includes('line-item/remove')) {
-                return;
-            }
+            if (!action.includes('checkout/line-item/delete') && !action.includes('line-item/remove')) return;
 
+            const productData = getProductDataFromElement(form);
+            if (!productData || !productData.item_id) return;
+
+            // Get quantity from form
             const formData = new FormData(form);
-            let lineItemId = '';
             let quantity = 1;
-
             for (const [key, value] of formData.entries()) {
-                if (!lineItemId && key.endsWith('[id]')) {
-                    lineItemId = String(value);
-                }
-
                 if (key.endsWith('[quantity]')) {
                     const qty = parseFloat(String(value));
                     if (!Number.isNaN(qty)) {
@@ -505,123 +312,60 @@
                 }
             }
 
-            // Try to find product info from cart line item
-            const container = form.closest('[data-product-id], [data-product-number], .cart-item, .line-item');
-            const itemName = resolveItemName(container, form);
-            const productNumber = resolveProductNumber(container, lineItemId);
-
-            const item = {
-                item_id: productNumber,
-                item_name: itemName,
-                quantity: quantity
-            };
-
-            if (!item.item_id && !item.item_name) {
-                return;
-            }
+            const item = Object.assign({}, productData, { quantity });
 
             pushEvent('remove_from_cart', {
-                ecommerce: {
-                    currency: resolveCurrency(),
-                    items: [item]
-                }
+                currency: item.currency || getCurrency(),
+                value: calculateValue(item, quantity),
+                items: [item]
             });
         }, true);
-
-        // DEAKTIVIERT: Click Listener verursacht doppelte Events
-        // Nur der Form Submit Listener oben wird verwendet
-        /*
-        // Also listen for AJAX delete requests (click-based removal)
-        document.addEventListener('click', function(event) {
-            const target = event.target instanceof Element ? event.target : null;
-            if (!target) {
-                return;
-            }
-
-            // Check for remove buttons - expanded selector list
-            const removeBtn = target.closest(
-                '[data-line-item-remove], ' +
-                '.line-item-remove, ' +
-                '[href*="line-item/delete"], ' +
-                '.cart-item-remove, ' +
-                '[data-offcanvas-cart-remove], ' +
-                'button[type="submit"][name*="remove"], ' +
-                '.btn-remove, ' +
-                '.cart-item-remove-button, ' +
-                'form[action*="line-item/delete"] button'
-            );
-            if (!removeBtn) {
-                return;
-            }
-
-            // Try to find the line item container
-            const container = removeBtn.closest('[data-product-id], [data-product-number], .cart-item, .line-item, .offcanvas-cart-item');
-            if (!container) {
-                return;
-            }
-
-            const item = buildItemFromElement(removeBtn);
-            if (!item.item_id && !item.item_name) {
-                return;
-            }
-
-            // Push event after short delay to allow removal to complete
-            setTimeout(function() {
-                pushEvent('remove_from_cart', {
-                    ecommerce: {
-                        currency: resolveCurrency(),
-                        items: [item]
-                    }
-                });
-            }, 100);
-        }, true);
-        */
     }
 
-    // 5. Register wishlist listener
+    /**
+     * Register wishlist listener
+     */
     function registerWishlistListener() {
         document.addEventListener('click', function(event) {
             const target = event.target instanceof Element ? event.target : null;
-            if (!target) {
-                return;
-            }
+            if (!target) return;
 
             const trigger = target.closest(
                 '[data-wishlist-add], [data-wishlist-add-id], [data-add-to-wishlist], .product-wishlist-action, .wishlist-add'
             );
-            if (!trigger) {
-                return;
-            }
+            if (!trigger) return;
 
-            const item = buildItemFromElement(trigger);
-            if (!item.item_id && !item.item_name) {
-                return;
-            }
+            const productData = getProductDataFromElement(trigger);
+            if (!productData || !productData.item_id) return;
+
+            const item = Object.assign({}, productData, { quantity: 1 });
 
             pushEvent('add_to_wishlist', {
-                ecommerce: {
-                    currency: resolveCurrency(),
-                    items: [item]
-                }
+                currency: item.currency || getCurrency(),
+                value: calculateValue(item, 1),
+                items: [item]
             });
         });
     }
 
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {
+        if (window.__wscDebugMode) console.log('🔧 DOM is still loading, waiting for DOMContentLoaded...');
         document.addEventListener('DOMContentLoaded', function() {
-            collectProductContexts();
-            registerAddToCartContextListener();
-            installCartRequestInterceptor();
+            if (window.__wscDebugMode) console.log('🔧 DOMContentLoaded fired, initializing listeners...');
+            registerAddToCartListener();
+            installAjaxInterceptor();
             registerRemoveFromCartListener();
             registerWishlistListener();
+            if (window.__wscDebugMode) console.log('✅ All WSC Add-to-Cart listeners registered successfully!');
         });
     } else {
-        collectProductContexts();
-        registerAddToCartContextListener();
-        installCartRequestInterceptor();
+        if (window.__wscDebugMode) console.log('🔧 DOM already loaded, initializing listeners immediately...');
+        registerAddToCartListener();
+        installAjaxInterceptor();
         registerRemoveFromCartListener();
         registerWishlistListener();
+        if (window.__wscDebugMode) console.log('✅ All WSC Add-to-Cart listeners registered successfully!');
     }
 })();
 </script>

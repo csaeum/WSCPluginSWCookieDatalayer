@@ -1,0 +1,36 @@
+{% sw_extends '@Storefront/storefront/component/buy-widget/buy-widget.html.twig' %}
+
+{% block buy_widget %}
+    {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') %}
+        <!-- WSC DEBUG: buy-widget template loaded -->
+        <!-- WSC DEBUG: Checking variables - page.product={{ page.product is defined ? 'DEFINED' : 'NOT DEFINED' }}, product={{ product is defined ? 'DEFINED' : 'NOT DEFINED' }} -->
+    {% endif %}
+
+    {# WSC DataLayer: Add complete product data for JavaScript tracking #}
+    {% set productEntity = page.product|default(product)|default(null) %}
+
+    {% if productEntity %}
+        {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') %}
+            <!-- WSC DEBUG: productEntity found: {{ productEntity.productNumber|default('NO PRODUCT NUMBER') }} -->
+        {% endif %}
+
+        {# For product detail page, set specific list context #}
+        {% set listId = 'product_detail' %}
+        {% set listName = 'Product Detail' %}
+
+        {# No index for product detail page (only one product) #}
+        {% set productDataJson = wsc_product_data(productEntity, null, listId, listName) %}
+        {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') %}
+            <!-- WSC DEBUG: productDataJson = {{ productDataJson|default('EMPTY')|slice(0, 100) }} -->
+        {% endif %}
+        <div class="d-none wsc-product-data-container"
+             data-product-number="{{ productEntity.productNumber|e('html_attr') }}"
+             data-product-info="{{ productDataJson }}"></div>
+    {% else %}
+        {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') %}
+            <!-- WSC DEBUG: No product entity found (neither page.product nor product variable) -->
+        {% endif %}
+    {% endif %}
+
+    {{ parent() }}
+{% endblock %}

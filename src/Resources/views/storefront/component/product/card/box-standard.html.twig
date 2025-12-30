@@ -1,9 +1,40 @@
 {% sw_extends '@Storefront/storefront/component/product/card/box-standard.html.twig' %}
 
 {% block component_product_box_badges %}
-    {# WSC DataLayer: Add product number for JavaScript tracking #}
+    {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') %}
+        <!-- WSC DEBUG: box-standard template loaded -->
+    {% endif %}
+    {# WSC DataLayer: Add complete product data for JavaScript tracking (add_to_cart, etc.) #}
     {% if product.productNumber %}
-        <span class="d-none" data-product-number="{{ product.productNumber|e('html_attr') }}"></span>
+        {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') %}
+            <!-- WSC DEBUG: product exists: {{ product.productNumber }} -->
+        {% endif %}
+
+        {# Determine list context based on route #}
+        {% set listId = 'related_products' %}
+        {% set listName = 'Related Products' %}
+        {% if app.request.attributes.get('_route') == 'frontend.navigation.page' %}
+            {% set listId = 'category_listing' %}
+            {% set listName = 'Category Listing' %}
+        {% elseif app.request.attributes.get('_route') == 'frontend.search.page' %}
+            {% set listId = 'search_results' %}
+            {% set listName = 'Search Results' %}
+        {% endif %}
+
+        {# Use loop.index0 if available in loop context, otherwise null #}
+        {% set productIndex = loop.index0 is defined ? loop.index0 : null %}
+
+        {% set productDataJson = wsc_product_data(product, productIndex, listId, listName) %}
+        {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') %}
+            <!-- WSC DEBUG: productDataJson = {{ productDataJson|default('EMPTY')|slice(0, 100) }} -->
+        {% endif %}
+        <span class="d-none wsc-product-data-inline"
+              data-product-number="{{ product.productNumber|e('html_attr') }}"
+              data-product-info="{{ productDataJson }}"></span>
+    {% else %}
+        {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') %}
+            <!-- WSC DEBUG: product.productNumber is empty -->
+        {% endif %}
     {% endif %}
 
     {{ parent() }}

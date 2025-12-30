@@ -34,10 +34,11 @@
     {{ parent() }}
 
     {# DataLayer Event Tracking (Issue #22) - Rendered AFTER PageLoadedEvents #}
-    {# TEMPORARY DEBUG: Load without conditions to test #}
-    <!-- WSC DEBUG: Template block executed -->
-    <!-- WSC DEBUG: activeRoute = {{ activeRoute|default('NOT SET') }} -->
-    <!-- WSC DEBUG: config check = {{ config('WscSwCookieDataLayer.config.wscTagManagerDataLayer')|default('NOT SET') }} -->
+    {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') %}
+        <!-- WSC DEBUG: Template block executed -->
+        <!-- WSC DEBUG: activeRoute = {{ activeRoute|default('NOT SET') }} -->
+        <!-- WSC DEBUG: config check = {{ config('WscSwCookieDataLayer.config.wscTagManagerDataLayer')|default('NOT SET') }} -->
+    {% endif %}
 
     {% sw_include '@WscSwCookieDataLayer/storefront/wscTagManager/DataLayer.html.twig' %}
 

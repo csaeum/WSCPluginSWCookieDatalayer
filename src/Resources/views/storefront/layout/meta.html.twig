@@ -9,7 +9,7 @@
     {# Einbindung von Cookie Consent ENDE #}
 
     {# Add to Cart / Remove from Cart / Wishlist Event Tracking (auf ALLEN Seiten) #}
-    {# Muss außerhalb der Whitelist sein, damit OffCanvas-Events überall funktionieren (Issue #18) #}
+    {# Muss außerhalb der Whitelist sein, damit OffCanvas-Events überall funktionieren #}
     {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayer') == "on" %}
         {% sw_include '@WscSwCookieDataLayer/storefront/wscTagManager/DataLayer/add_to_cart.html.twig' %}
     {% endif %}

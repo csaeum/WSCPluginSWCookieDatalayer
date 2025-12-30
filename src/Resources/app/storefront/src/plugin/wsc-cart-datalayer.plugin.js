@@ -1,213 +1,230 @@
 import Plugin from 'src/plugin-system/plugin.class';
 
+/**
+ * WscCartDataLayer Plugin
+ * Simplified version using backend-provided product data from data-product-info attributes
+ */
 export default class WscCartDataLayer extends Plugin {
     init() {
+        if (window.__wscDebugMode) console.log('WSC Cart DataLayer Plugin: Initializing...');
+
         this.dataLayer = window.dataLayer || [];
         this.mtmLayer = window._mtm || [];
-        this._initProductContextStore();
+        this.lastClickedProduct = null;
 
         this._registerAddToCartListener();
+        this._installAjaxInterceptor();
         this._registerRemoveFromCartListener();
         this._registerWishlistListener();
+
+        if (window.__wscDebugMode) console.log('WSC Cart DataLayer Plugin: Initialized successfully');
     }
 
-    _registerAddToCartListener() {
-        this._collectProductContexts();
-        this._registerAddToCartContextListener();
-        this._installCartRequestInterceptor();
-    }
+    /**
+     * Get product data from data-product-info attribute
+     */
+    _getProductDataFromElement(element) {
+        const container = element.closest('[data-product-info], .product-box, .product-detail, .buy-widget');
 
-    _registerRemoveFromCartListener() {
-        document.addEventListener('submit', (event) => {
-            const form = event.target;
-            if (!(form instanceof HTMLFormElement)) {
-                return;
-            }
+        let dataEl = null;
 
-            const action = form.getAttribute('action') || '';
-            if (!action.includes('checkout/line-item/delete')) {
-                return;
-            }
-
-            const item = this._buildItemFromForm(form);
-            if (!item.item_id && !item.item_name) {
-                return;
-            }
-
-            this._pushEvent('remove_from_cart', {
-                ecommerce: {
-                    currency: this._resolveCurrency(),
-                    items: [item],
-                },
-            });
-        }, true);
-    }
-
-    _registerWishlistListener() {
-        document.addEventListener('click', (event) => {
-            const target = event.target instanceof Element ? event.target : null;
-            if (!target) {
-                return;
-            }
-
-            const trigger = target.closest(
-                '[data-wishlist-add], [data-wishlist-add-id], [data-add-to-wishlist], .product-wishlist-action, .wishlist-add'
-            );
-            if (!trigger) {
-                return;
-            }
-
-            const item = this._buildItemFromElement(trigger);
-            if (!item.item_id && !item.item_name) {
-                return;
-            }
-
-            this._pushEvent('add_to_wishlist', {
-                ecommerce: {
-                    currency: this._resolveCurrency(),
-                    items: [item],
-                },
-            });
-        });
-    }
-
-    _buildItemFromForm(form) {
-        const formData = new FormData(form);
-        let itemId = '';
-        let quantity = 1;
-
-        for (const [key, value] of formData.entries()) {
-            if (!itemId && key.endsWith('[id]')) {
-                itemId = String(value);
-            }
-
-            if (key.endsWith('[quantity]')) {
-                const qty = parseFloat(String(value));
-                if (!Number.isNaN(qty)) {
-                    quantity = qty;
-                }
-            }
-        }
-
-        const container = form.closest('[data-product-id], [data-product-number], .product-box, .product-detail-main, .line-item, .cart-item');
-
-        // Fallback: Extract SKU/Product Number from container or DOM
-        if (!itemId && container) {
-            // Try data-product-number attribute first
-            itemId = container.dataset?.productNumber || '';
-
-            // Try to extract from .line-item-product-number element
-            if (!itemId) {
-                const numberEl = container.querySelector('.line-item-product-number');
-                if (numberEl) {
-                    const text = (numberEl.textContent || '').trim();
-                    // Extract SKU from "Produkt-Nr.: SWDEMO10001" or similar
-                    const match = text.match(/:\s*([A-Z0-9.-]+)/);
-                    if (match) {
-                        itemId = match[1];
-                    }
-                }
-            }
-
-            // Try to extract from link href
-            if (!itemId) {
-                const link = container.querySelector('.line-item-label, .line-item-img-link');
-                if (link) {
-                    const href = link.getAttribute('href') || '';
-                    const urlParts = href.split('/');
-                    const lastPart = urlParts[urlParts.length - 1];
-                    // SKU is usually in format like SWDEMO10001
-                    if (lastPart && /^[A-Z0-9.-]+$/.test(lastPart)) {
-                        itemId = lastPart;
-                    }
-                }
-            }
-        }
-
-        const itemName = this._resolveItemName(container, form);
-
-        return {
-            item_id: itemId,
-            item_name: itemName,
-            quantity,
-        };
-    }
-
-    _buildItemFromElement(element) {
-        const container = element.closest('[data-product-id], [data-product-number], .product-box, .product-detail-main, .search-suggest-product');
-        const itemId = container?.dataset?.productId || container?.dataset?.productNumber || '';
-        const itemName = this._resolveItemName(container, element);
-
-        return {
-            item_id: itemId,
-            item_name: itemName,
-            quantity: 1,
-        };
-    }
-
-    _resolveItemName(container, fallbackElement) {
+        // Try to find data-product-info in the container or its children
         if (container) {
-            const nameEl = container.querySelector(
-                '.product-name, .product-box-title, .product-detail-name, .search-suggest-product-name, .line-item-label'
-            );
-            if (nameEl) {
-                return (nameEl.textContent || '').trim();
-            }
+            dataEl = container.querySelector('[data-product-info]') ||
+                     (container.hasAttribute('data-product-info') ? container : null);
         }
 
-        if (fallbackElement) {
-            const text = fallbackElement.textContent || '';
-            return text.trim();
+        // Fallback: Search globally for .wsc-product-data-container (for product detail page)
+        if (!dataEl) {
+            dataEl = document.querySelector('.wsc-product-data-container[data-product-info]');
         }
 
-        return '';
+        // Fallback: Search globally for any [data-product-info] (last resort)
+        if (!dataEl) {
+            dataEl = document.querySelector('[data-product-info]');
+        }
+
+        if (!dataEl) return null;
+
+        const dataJson = dataEl.getAttribute('data-product-info');
+        if (!dataJson) return null;
+
+        try {
+            return JSON.parse(dataJson);
+        } catch (e) {
+            if (window.__wscDebugMode) console.warn('WSC DataLayer Plugin: Failed to parse product data', e);
+            return null;
+        }
     }
 
-    _resolveCurrency() {
-        const entry = this._findLatestDataLayerEntry();
-        return entry?.ecommerce?.currency || '';
-    }
-
-    _findLatestDataLayerEntry() {
+    /**
+     * Get currency from dataLayer
+     */
+    _getCurrency() {
         for (let i = this.dataLayer.length - 1; i >= 0; i -= 1) {
             const entry = this.dataLayer[i];
             if (entry && entry.ecommerce && entry.ecommerce.currency) {
-                return entry;
+                return entry.ecommerce.currency;
             }
         }
-
-        return null;
+        return 'EUR'; // Fallback
     }
 
-    _pushEvent(eventName, payload) {
-        const eventPayload = Object.assign({ event: eventName }, payload);
+    /**
+     * Calculate value (price * quantity)
+     */
+    _calculateValue(productData, quantity) {
+        if (!productData.price) return 0;
+        return productData.price * quantity;
+    }
+
+    /**
+     * Push event to dataLayer and mtmLayer
+     */
+    _pushEvent(eventName, ecommerceData) {
+        const eventData = {
+            event: eventName,
+            ecommerce: ecommerceData
+        };
 
         if (Array.isArray(this.dataLayer)) {
-            this.dataLayer.push({ ecommerce: null });
-            this.dataLayer.push(eventPayload);
+            this.dataLayer.push({ ecommerce: null }); // Clear previous ecommerce data
+            this.dataLayer.push(eventData);
         }
 
         if (Array.isArray(this.mtmLayer)) {
             this.mtmLayer.push({ ecommerce: null });
-            this.mtmLayer.push(eventPayload);
+            this.mtmLayer.push(eventData);
         }
     }
 
-    _installCartRequestInterceptor() {
-        if (window.__wscCartInterceptorInstalled) {
-            return;
+    /**
+     * Register click listener for add-to-cart buttons
+     */
+    _registerAddToCartListener() {
+        if (window.__wscDebugMode) console.log('WSC Cart DataLayer Plugin: Registering add-to-cart listener');
+
+        document.addEventListener('click', (event) => {
+            const target = event.target instanceof Element ? event.target : null;
+            if (!target) return;
+
+            const button = target.closest('.btn-buy, [data-add-to-cart], button[data-product-id]');
+            if (!button) return;
+
+            if (window.__wscDebugMode) console.log('WSC Cart DataLayer Plugin: Add-to-cart button clicked', button);
+
+            const productData = this._getProductDataFromElement(button);
+            if (window.__wscDebugMode) console.log('WSC Cart DataLayer Plugin: Product data from element:', productData);
+
+            if (!productData || !productData.item_id) {
+                if (window.__wscDebugMode) console.warn('WSC Cart DataLayer Plugin: No valid product data found');
+                return;
+            }
+
+            // Store for AJAX fallback
+            this.lastClickedProduct = productData;
+            if (window.__wscDebugMode) console.log('WSC Cart DataLayer Plugin: Stored product data for AJAX:', productData);
+        }, true);
+    }
+
+    /**
+     * Extract quantity from FormData or request body
+     */
+    _extractQuantityFromRequest(requestBody) {
+        if (window.__wscDebugMode) console.log('WSC Cart DataLayer Plugin: Extracting quantity from request body:', requestBody);
+
+        try {
+            // If it's FormData, iterate through it
+            if (requestBody instanceof FormData) {
+                for (const [key, value] of requestBody.entries()) {
+                    if (window.__wscDebugMode) console.log('WSC Cart DataLayer Plugin: FormData entry:', key, '=', value);
+                    if (key.includes('[quantity]')) {
+                        const qty = parseInt(value, 10);
+                        if (!isNaN(qty) && qty > 0) {
+                            if (window.__wscDebugMode) console.log('WSC Cart DataLayer Plugin: Found quantity in FormData:', qty);
+                            return qty;
+                        }
+                    }
+                }
+            }
+
+            // If it's a string (URL-encoded), parse it
+            if (typeof requestBody === 'string') {
+                const params = new URLSearchParams(requestBody);
+                for (const [key, value] of params.entries()) {
+                    if (window.__wscDebugMode) console.log('WSC Cart DataLayer Plugin: URLSearchParams entry:', key, '=', value);
+                    if (key.includes('[quantity]')) {
+                        const qty = parseInt(value, 10);
+                        if (!isNaN(qty) && qty > 0) {
+                            if (window.__wscDebugMode) console.log('WSC Cart DataLayer Plugin: Found quantity in URLSearchParams:', qty);
+                            return qty;
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            if (window.__wscDebugMode) console.warn('WSC Cart DataLayer Plugin: Error extracting quantity:', e);
         }
+
+        if (window.__wscDebugMode) console.log('WSC Cart DataLayer Plugin: No quantity found, defaulting to 1');
+        return 1; // Default quantity
+    }
+
+    /**
+     * Install AJAX interceptor
+     */
+    _installAjaxInterceptor() {
+        if (window.__wscCartInterceptorInstalled) return;
         window.__wscCartInterceptorInstalled = true;
 
+        // Store request body for fetch requests
+        let lastRequestBody = null;
+
+        // Intercept fetch()
         const originalFetch = window.fetch;
+        const self = this;
+
         if (typeof originalFetch === 'function') {
             window.fetch = async (...args) => {
+                const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || '';
+
+                // Store request body if it's an add-to-cart request
+                if (url.includes('checkout/line-item/add') && args[1] && args[1].body) {
+                    lastRequestBody = args[1].body;
+                    if (window.__wscDebugMode) console.log('WSC Cart DataLayer Plugin: Stored fetch request body:', lastRequestBody);
+                }
+
                 const response = await originalFetch(...args);
-                this._handleCartRequest(args[0], response, args[1]);
+
+                if (url.includes('checkout/line-item/add') && response && response.ok) {
+                    if (window.__wscDebugMode) console.log('WSC Cart DataLayer Plugin: AJAX add-to-cart detected (fetch)');
+
+                    if (self.lastClickedProduct) {
+                        // Extract quantity from request body
+                        const quantity = self._extractQuantityFromRequest(lastRequestBody);
+
+                        const item = Object.assign({}, self.lastClickedProduct, { quantity: quantity });
+
+                        if (window.__wscDebugMode) console.log('WSC Cart DataLayer Plugin: Pushing add_to_cart event:', item);
+
+                        self._pushEvent('add_to_cart', {
+                            currency: item.currency || self._getCurrency(),
+                            value: self._calculateValue(item, quantity),
+                            items: [item]
+                        });
+
+                        // Reset
+                        lastRequestBody = null;
+                    } else {
+                        if (window.__wscDebugMode) console.warn('WSC Cart DataLayer Plugin: No last clicked product stored');
+                    }
+                }
+
                 return response;
             };
         }
 
+        // Intercept XMLHttpRequest
         const originalOpen = XMLHttpRequest.prototype.open;
         XMLHttpRequest.prototype.open = function (method, url, ...rest) {
             this.__wscUrl = url;
@@ -216,12 +233,33 @@ export default class WscCartDataLayer extends Plugin {
 
         const originalSend = XMLHttpRequest.prototype.send;
         XMLHttpRequest.prototype.send = function (body) {
+            // Store request body for add-to-cart requests
+            const url = this.__wscUrl || '';
+            if (url.includes('checkout/line-item/add')) {
+                this.__wscRequestBody = body;
+                if (window.__wscDebugMode) console.log('WSC Cart DataLayer Plugin: Stored XMLHttpRequest body:', body);
+            }
+
             this.addEventListener('load', () => {
                 const url = this.__wscUrl || '';
-                if (url && url.includes('checkout/line-item/add') && this.status >= 200 && this.status < 300) {
-                    const payload = WscCartDataLayer._extractItemFromRequest(body, url);
-                    if (payload) {
-                        WscCartDataLayer._pushAddToCart(payload);
+                if (url.includes('checkout/line-item/add') && this.status >= 200 && this.status < 300) {
+                    if (window.__wscDebugMode) console.log('WSC Cart DataLayer Plugin: AJAX add-to-cart detected (XMLHttpRequest)');
+
+                    if (self.lastClickedProduct) {
+                        // Extract quantity from request body
+                        const quantity = self._extractQuantityFromRequest(this.__wscRequestBody);
+
+                        const item = Object.assign({}, self.lastClickedProduct, { quantity: quantity });
+
+                        if (window.__wscDebugMode) console.log('WSC Cart DataLayer Plugin: Pushing add_to_cart event:', item);
+
+                        self._pushEvent('add_to_cart', {
+                            currency: item.currency || self._getCurrency(),
+                            value: self._calculateValue(item, quantity),
+                            items: [item]
+                        });
+                    } else {
+                        if (window.__wscDebugMode) console.warn('WSC Cart DataLayer Plugin: No last clicked product stored');
                     }
                 }
             });
@@ -229,33 +267,24 @@ export default class WscCartDataLayer extends Plugin {
         };
     }
 
-    _handleCartRequest(request, response, init = {}) {
-        const url = typeof request === 'string' ? request : (request && request.url) || '';
-        if (!url || !url.includes('checkout/line-item/add')) {
-            return;
-        }
+    /**
+     * Register remove-from-cart listener
+     */
+    _registerRemoveFromCartListener() {
+        document.addEventListener('submit', (event) => {
+            const form = event.target;
+            if (!(form instanceof HTMLFormElement)) return;
 
-        if (!response || !response.ok) {
-            return;
-        }
+            const action = form.getAttribute('action') || '';
+            if (!action.includes('checkout/line-item/delete') && !action.includes('line-item/remove')) return;
 
-        const payload = WscCartDataLayer._extractItemFromRequest(init.body, url);
-        if (!payload) {
-            return;
-        }
+            const productData = this._getProductDataFromElement(form);
+            if (!productData || !productData.item_id) return;
 
-        WscCartDataLayer._pushAddToCart(payload);
-    }
-
-    static _extractItemFromRequest(body, url) {
-        let itemId = '';
-        let quantity = 1;
-
-        if (body instanceof FormData) {
-            for (const [key, value] of body.entries()) {
-                if (!itemId && key.endsWith('[id]')) {
-                    itemId = String(value);
-                }
+            // Get quantity from form
+            const formData = new FormData(form);
+            let quantity = 1;
+            for (const [key, value] of formData.entries()) {
                 if (key.endsWith('[quantity]')) {
                     const qty = parseFloat(String(value));
                     if (!Number.isNaN(qty)) {
@@ -263,150 +292,40 @@ export default class WscCartDataLayer extends Plugin {
                     }
                 }
             }
-        } else if (typeof body === 'string') {
-            const params = new URLSearchParams(body);
-            for (const [key, value] of params.entries()) {
-                if (!itemId && key.endsWith('[id]')) {
-                    itemId = String(value);
-                }
-                if (key.endsWith('[quantity]')) {
-                    const qty = parseFloat(String(value));
-                    if (!Number.isNaN(qty)) {
-                        quantity = qty;
-                    }
-                }
-            }
-        }
 
-        if (!itemId && url.includes('?')) {
-            const params = new URLSearchParams(url.split('?')[1]);
-            for (const [key, value] of params.entries()) {
-                if (!itemId && key.endsWith('[id]')) {
-                    itemId = String(value);
-                }
-                if (key.endsWith('[quantity]')) {
-                    const qty = parseFloat(String(value));
-                    if (!Number.isNaN(qty)) {
-                        quantity = qty;
-                    }
-                }
-            }
-        }
+            const item = Object.assign({}, productData, { quantity });
 
-        return {
-            item_id: itemId,
-            item_name: '',
-            quantity,
-        };
+            this._pushEvent('remove_from_cart', {
+                currency: item.currency || this._getCurrency(),
+                value: this._calculateValue(item, quantity),
+                items: [item]
+            });
+        }, true);
     }
 
-    static _pushAddToCart(item) {
-        const dataLayer = window.dataLayer || [];
-        const mtmLayer = window._mtm || [];
-        const context = window.__wscProductContext || {};
-        const byId = context.byId || {};
-        const byNumber = context.byNumber || {};
-        const last = context.last || null;
-
-        if (!item.item_id && last && last.item_id) {
-            item.item_id = last.item_id;
-        }
-
-        if (!item.item_name) {
-            item.item_name = byId[item.item_id] || byNumber[item.item_id] || (last ? last.item_name : '') || '';
-        }
-
-        if (!item.item_id && !item.item_name) {
-            return;
-        }
-
-        const currency = WscCartDataLayer._resolveCurrencyStatic(dataLayer);
-
-        const payload = {
-            event: 'add_to_cart',
-            ecommerce: {
-                currency,
-                items: [item],
-            },
-        };
-
-        if (Array.isArray(dataLayer)) {
-            dataLayer.push({ ecommerce: null });
-            dataLayer.push(payload);
-        }
-
-        if (Array.isArray(mtmLayer)) {
-            mtmLayer.push({ ecommerce: null });
-            mtmLayer.push(payload);
-        }
-    }
-
-    static _resolveCurrencyStatic(dataLayer) {
-        if (!Array.isArray(dataLayer)) {
-            return '';
-        }
-
-        for (let i = dataLayer.length - 1; i >= 0; i -= 1) {
-            const entry = dataLayer[i];
-            if (entry && entry.ecommerce && entry.ecommerce.currency) {
-                return entry.ecommerce.currency;
-            }
-        }
-
-        return '';
-    }
-
-    _initProductContextStore() {
-        if (!window.__wscProductContext) {
-            window.__wscProductContext = {
-                byId: {},
-                byNumber: {},
-                last: null,
-            };
-        }
-    }
-
-    _collectProductContexts() {
-        const elements = document.querySelectorAll('[data-product-id], [data-product-number]');
-        elements.forEach((element) => {
-            const item = this._buildItemFromElement(element);
-            if (!item.item_name) {
-                return;
-            }
-
-            const context = window.__wscProductContext;
-            if (item.item_id) {
-                context.byId[item.item_id] = item.item_name;
-            }
-
-            const number = element.dataset?.productNumber || '';
-            if (number) {
-                context.byNumber[number] = item.item_name;
-            }
-        });
-    }
-
-    _registerAddToCartContextListener() {
+    /**
+     * Register wishlist listener
+     */
+    _registerWishlistListener() {
         document.addEventListener('click', (event) => {
             const target = event.target instanceof Element ? event.target : null;
-            if (!target) {
-                return;
-            }
+            if (!target) return;
 
-            const button = target.closest('.btn-buy, [data-add-to-cart], form[action*="checkout/line-item/add"] button');
-            if (!button) {
-                return;
-            }
+            const trigger = target.closest(
+                '[data-wishlist-add], [data-wishlist-add-id], [data-add-to-wishlist], .product-wishlist-action, .wishlist-add'
+            );
+            if (!trigger) return;
 
-            const item = this._buildItemFromElement(button);
-            if (!item.item_id && !item.item_name) {
-                return;
-            }
+            const productData = this._getProductDataFromElement(trigger);
+            if (!productData || !productData.item_id) return;
 
-            window.__wscProductContext.last = item;
-            if (item.item_id) {
-                window.__wscProductContext.byId[item.item_id] = item.item_name || '';
-            }
-        }, true);
+            const item = Object.assign({}, productData, { quantity: 1 });
+
+            this._pushEvent('add_to_wishlist', {
+                currency: item.currency || this._getCurrency(),
+                value: this._calculateValue(item, 1),
+                items: [item]
+            });
+        });
     }
 }

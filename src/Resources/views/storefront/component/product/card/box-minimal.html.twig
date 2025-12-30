@@ -1,9 +1,25 @@
 {% sw_extends '@Storefront/storefront/component/product/card/box-minimal.html.twig' %}
 
 {% block component_product_box_badges %}
-    {# WSC DataLayer: Add product number for JavaScript tracking #}
+    {# WSC DataLayer: Add complete product data for JavaScript tracking (add_to_cart, etc.) #}
     {% if product.productNumber %}
-        <span class="d-none" data-product-number="{{ product.productNumber|e('html_attr') }}"></span>
+        {# Determine list context based on route #}
+        {% set listId = 'related_products' %}
+        {% set listName = 'Related Products' %}
+        {% if app.request.attributes.get('_route') == 'frontend.navigation.page' %}
+            {% set listId = 'category_listing' %}
+            {% set listName = 'Category Listing' %}
+        {% elseif app.request.attributes.get('_route') == 'frontend.search.page' %}
+            {% set listId = 'search_results' %}
+            {% set listName = 'Search Results' %}
+        {% endif %}
+
+        {# Use loop.index0 if available in loop context, otherwise null #}
+        {% set productIndex = loop.index0 is defined ? loop.index0 : null %}
+
+        <span class="d-none"
+              data-product-number="{{ product.productNumber|e('html_attr') }}"
+              data-product-info="{{ wsc_product_data(product, productIndex, listId, listName) }}"></span>
     {% endif %}
 
     {{ parent() }}
