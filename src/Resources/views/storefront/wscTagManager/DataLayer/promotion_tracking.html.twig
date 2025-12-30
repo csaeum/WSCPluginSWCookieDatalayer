@@ -19,25 +19,76 @@
     const viewedPromotions = new Set();
 
     /**
+     * Parse BEM-style CSS class for promotion info
+     * Example: "datalayer-promotion-slider--bestseller"
+     * Returns: {type: 'slider', identifier: 'bestseller'}
+     */
+    function parsePromotionClass(element) {
+        const classList = element.classList;
+        for (let i = 0; i < classList.length; i++) {
+            const className = classList[i];
+
+            // Check for datalayer-promotion-* pattern
+            if (className.startsWith('datalayer-promotion-')) {
+                const parts = className.replace('datalayer-promotion-', '').split('--');
+                return {
+                    type: parts[0], // e.g., 'slider', 'banner'
+                    identifier: parts[1] || null, // e.g., 'bestseller', 'adventskalender'
+                    fullClass: className
+                };
+            }
+        }
+        return null;
+    }
+
+    /**
      * Extract promotion data from element
      * Supports two types:
      * 1. Content promotions (banners without products)
      * 2. Product promotions (sliders with products)
+     *
+     * NEW: Primary detection via CSS classes (datalayer-promotion-{type}--{identifier})
      */
     function getPromotionData(element) {
         if (window.__wscDebugMode) console.log('🔧 Extracting promotion data from:', element);
 
-        // Basic promotion info (for both types)
-        const promotionId = element.getAttribute('data-promotion-id') ||
-                           element.getAttribute('data-banner-id') ||
-                           element.id ||
-                           'promotion_' + Math.random().toString(36).substr(2, 9);
+        // PRIMARY: Parse CSS class (BEM syntax: datalayer-promotion-{type}--{identifier})
+        const cssInfo = parsePromotionClass(element);
 
-        const promotionName = element.getAttribute('data-promotion-name') ||
-                             element.getAttribute('data-banner-name') ||
-                             element.getAttribute('title') ||
-                             element.getAttribute('alt') ||
-                             'Unknown Promotion';
+        // Build promotion info with fallbacks
+        let promotionId = element.getAttribute('data-promotion-id') ||
+                         element.getAttribute('data-banner-id');
+
+        let promotionName = element.getAttribute('data-promotion-name') ||
+                           element.getAttribute('data-banner-name');
+
+        let promotionType = element.getAttribute('data-promotion-type');
+
+        // Use CSS class info if available
+        if (cssInfo) {
+            if (window.__wscDebugMode) console.log('🔧 Found promotion CSS class:', cssInfo);
+
+            if (!promotionId && cssInfo.identifier) {
+                promotionId = cssInfo.identifier; // e.g., 'bestseller', 'adventskalender'
+            }
+            if (!promotionName && cssInfo.identifier) {
+                // Beautify identifier: 'bestseller' -> 'Bestseller', 'adventskalender' -> 'Adventskalender'
+                promotionName = cssInfo.identifier.charAt(0).toUpperCase() + cssInfo.identifier.slice(1);
+            }
+            if (!promotionType) {
+                promotionType = cssInfo.type; // e.g., 'slider', 'banner'
+            }
+        }
+
+        // Final fallbacks
+        if (!promotionId) {
+            promotionId = element.id || 'promotion_' + Math.random().toString(36).substr(2, 9);
+        }
+        if (!promotionName) {
+            promotionName = element.getAttribute('title') ||
+                           element.getAttribute('alt') ||
+                           'Unknown Promotion';
+        }
 
         const creativeName = element.getAttribute('data-creative-name') ||
                             element.getAttribute('data-banner-creative') ||
@@ -45,7 +96,7 @@
 
         const creativeSlot = element.getAttribute('data-creative-slot') ||
                             element.getAttribute('data-banner-slot') ||
-                            'unknown_slot';
+                            (promotionType ? promotionType + '_slot' : 'unknown_slot');
 
         const basePromotionData = {
             promotion_id: promotionId,
@@ -150,12 +201,15 @@
         }
 
         // Find all promotion elements
+        // PRIMARY: CSS class convention (datalayer-promotion-*)
+        // FALLBACK: Old data-attribute method
         const promotionSelectors = [
-            '[data-promotion-tracking]',
-            '[data-banner-tracking]',
-            '.promotion-banner',
-            '.cms-element-image-slider[data-promotion="true"]',
-            '.banner-slider[data-promotion="true"]'
+            '[class*="datalayer-promotion-"]',  // PRIMARY: CSS class convention (NEW!)
+            '[data-promotion-tracking]',         // Fallback: explicit attribute
+            '[data-banner-tracking]',            // Fallback: banner attribute
+            '.promotion-banner',                 // Fallback: generic class
+            '.cms-element-image-slider[data-promotion="true"]', // Fallback: specific CMS
+            '.banner-slider[data-promotion="true"]'             // Fallback: banner slider
         ];
 
         const observer = new IntersectionObserver(function(entries) {
@@ -201,25 +255,13 @@
             observer.observe(element);
         });
 
-        // ALSO observe product sliders that might be promotions but don't have explicit data-promotion-tracking
-        // Look for product sliders with specific CMS element classes
-        const productSliders = document.querySelectorAll('.cms-element-product-slider, .product-slider, .product-carousel');
-        productSliders.forEach(function(slider) {
-            // Check if slider has products with data-product-info
-            if (slider.querySelectorAll('[data-product-info]').length > 0) {
-                // Add a default promotion tracking attribute if not set
-                if (!slider.hasAttribute('data-promotion-tracking') && !slider.hasAttribute('data-banner-tracking')) {
-                    slider.setAttribute('data-promotion-tracking', 'auto');
-                    // Try to extract name from heading
-                    const heading = slider.querySelector('h2, h3, .cms-element-product-slider-title, .slider-title');
-                    if (heading) {
-                        slider.setAttribute('data-promotion-name', heading.textContent.trim());
-                    }
-                    observer.observe(slider);
-                    if (window.__wscDebugMode) console.log('🔧 Auto-detected product slider as promotion:', slider);
-                }
-            }
-        });
+        // NOTE: Auto-detection of generic sliders is DISABLED by default
+        // Use CSS class convention (datalayer-promotion-slider) instead!
+        // This prevents false positives (cross-selling, related products, etc.)
+        if (window.__wscDebugMode) {
+            console.log('💡 TIP: Use CSS class "datalayer-promotion-slider--{name}" to mark sliders as promotions');
+            console.log('💡 TIP: Use CSS class "datalayer-promotion-banner--{name}" to mark banners as promotions');
+        }
     }
 
     /**
@@ -233,8 +275,9 @@
             if (!target) return;
 
             // Find promotion element (banner or product slider)
+            // PRIMARY: CSS class convention
             const promotionElement = target.closest(
-                '[data-promotion-tracking], [data-banner-tracking], .promotion-banner, .banner-link[data-promotion="true"], .cms-element-product-slider, .product-slider, .product-carousel'
+                '[class*="datalayer-promotion-"], [data-promotion-tracking], [data-banner-tracking], .promotion-banner'
             );
 
             if (!promotionElement) return;

@@ -139,12 +139,99 @@ Beispiele: "Unsere Bestseller", "Sale-Produkte", "Neue Artikel", "Empfehlungen"
 
 ---
 
-### HTML-Markup für Promotions
+### ⭐ Einfachste Methode: CSS-Klassen Convention (NEU!)
 
-#### **Content-Promotion (Banner ohne Produkte):**
+**So funktioniert's:**
+
+1. Im **Shopware 6 Admin** → Erlebniswelten bearbeiten
+2. CMS-Block auswählen (z.B. Produktslider oder Bild-Block)
+3. Im Block-Editor → **"CSS-Klasse"** Feld finden
+4. CSS-Klasse nach diesem Schema eintragen:
+
+```
+datalayer-promotion-{type}--{identifier}
+```
+
+**Beispiele:**
+
+| CSS-Klasse | Typ | Promotion ID | Promotion Name |
+|------------|-----|--------------|----------------|
+| `datalayer-promotion-slider--bestseller` | Produktslider | `bestseller` | `Bestseller` |
+| `datalayer-promotion-slider--sale` | Produktslider | `sale` | `Sale` |
+| `datalayer-promotion-banner--adventskalender` | Banner | `adventskalender` | `Adventskalender` |
+| `datalayer-promotion-banner--newsletter` | Banner | `newsletter` | `Newsletter` |
+
+**Das war's!** 🎉 Das Plugin erkennt die CSS-Klasse automatisch und trackt:
+- `view_promotion` wenn 50% sichtbar
+- `select_promotion` beim Klick
+
+---
+
+### Shopware 6 Admin: Schritt-für-Schritt
+
+#### **Produktslider als Promotion markieren:**
+
+1. Erlebniswelten → Seite bearbeiten
+2. Produktslider-Block auswählen
+3. In den Block-Einstellungen → Tab "Layout" oder "Allgemein"
+4. Feld **"CSS-Klasse"** → Eintragen:
+   ```
+   datalayer-promotion-slider--bestseller
+   ```
+5. Speichern ✅
+
+#### **Banner als Promotion markieren:**
+
+1. Erlebniswelten → Seite bearbeiten
+2. Bild-Block oder Bild-Slider-Block auswählen
+3. In den Block-Einstellungen → Tab "Layout"
+4. Feld **"CSS-Klasse"** → Eintragen:
+   ```
+   datalayer-promotion-banner--adventskalender
+   ```
+5. Speichern ✅
+
+---
+
+### HTML-Markup für Promotions (für Entwickler)
+
+#### **Methode 1: CSS-Klassen (empfohlen!)** ⭐
 
 ```html
-<!-- Einfaches Banner -->
+<!-- Banner mit CSS-Klasse -->
+<div class="cms-block datalayer-promotion-banner--adventskalender">
+    <a href="/adventskalender">
+        <img src="adventskalender.jpg" alt="Adventskalender">
+    </a>
+</div>
+
+<!-- Produktslider mit CSS-Klasse -->
+<div class="cms-element-product-slider datalayer-promotion-slider--bestseller">
+    <h2>Unsere Bestseller</h2>
+
+    <!-- Produkte mit data-product-info werden automatisch erkannt! -->
+    <div class="product-box" data-product-info='{"item_id":"ABC123",...}'>
+        <!-- Produkt 1 -->
+    </div>
+    <div class="product-box" data-product-info='{"item_id":"DEF456",...}'>
+        <!-- Produkt 2 -->
+    </div>
+</div>
+```
+
+**Wie es funktioniert:**
+1. CSS-Klasse: `datalayer-promotion-banner--adventskalender`
+2. Plugin extrahiert automatisch:
+   - `promotion_id`: `"adventskalender"`
+   - `promotion_name`: `"Adventskalender"` (automatisch beautified)
+   - `type`: `"banner"`
+
+---
+
+#### **Methode 2: Data-Attribute (erweiterte Kontrolle)**
+
+```html
+<!-- Banner mit Data-Attributen -->
 <div data-promotion-tracking
      data-promotion-id="adventskalender_2025"
      data-promotion-name="Adventskalender Gewinnspiel"
@@ -155,84 +242,75 @@ Beispiele: "Unsere Bestseller", "Sale-Produkte", "Neue Artikel", "Empfehlungen"
     </a>
 </div>
 
-<!-- Newsletter-Banner -->
-<a href="/newsletter"
-   data-promotion-tracking
-   data-promotion-id="newsletter_signup"
-   data-promotion-name="Newsletter Anmeldung"
-   data-creative-name="Sidebar Banner"
-   data-creative-slot="sidebar_top"
-   class="promotion-banner">
-    <img src="newsletter.jpg" alt="Newsletter">
-</a>
-```
-
-#### **Produkt-Promotion (Slider mit Produkten):**
-
-```html
-<!-- Bestseller-Slider (automatische Erkennung!) -->
-<div class="cms-element-product-slider product-slider"
+<!-- Produktslider mit Data-Attributen -->
+<div class="cms-element-product-slider"
      data-promotion-tracking
      data-promotion-id="bestseller_slider"
      data-promotion-name="Unsere Bestseller"
      data-creative-slot="home_bestseller">
     <h2>Unsere beliebtesten Produkte</h2>
 
-    <!-- Produkte mit data-product-info werden automatisch erkannt! -->
-    <div class="product-box" data-product-info='{"item_id":"ABC123",...}'>
-        <!-- Produkt 1 -->
-    </div>
-    <div class="product-box" data-product-info='{"item_id":"DEF456",...}'>
-        <!-- Produkt 2 -->
-    </div>
-</div>
-
-<!-- Sale-Produkte Slider -->
-<div class="product-carousel"
-     data-promotion-tracking
-     data-promotion-id="sale_products"
-     data-promotion-name="Sale Produkte"
-     data-creative-name="Sale Carousel"
-     data-creative-slot="home_sale">
-    <h3 class="slider-title">Jetzt im Sale!</h3>
-
-    <!-- Die Produkte (mit data-product-info) -->
-    <div class="swiper-wrapper">
-        <!-- Produkte hier -->
-    </div>
+    <!-- Produkte -->
+    <div class="product-box" data-product-info='{"item_id":"ABC",...}'>...</div>
 </div>
 ```
 
-**💡 Automatische Erkennung:**
-Produkt-Slider mit den Klassen `.cms-element-product-slider`, `.product-slider` oder `.product-carousel` werden **automatisch als Promotions erkannt**, wenn sie Produkte mit `data-product-info` enthalten!
+---
+
+#### **Methode 3: Hybrid (CSS + Data-Attribute)**
+
+```html
+<!-- Kombination für maximale Kontrolle -->
+<div class="datalayer-promotion-slider--sale"
+     data-promotion-name="Black Friday Sale 2025"
+     data-creative-slot="home_hero">
+    <!-- CSS-Klasse gibt promotion_id: "sale" -->
+    <!-- Data-Attribut überschreibt promotion_name -->
+</div>
+```
 
 ---
 
-### Erkannte CSS-Selektoren:
+### Erkennungsmethoden (Priorität):
 
-**Für Content-Promotions:**
-- `[data-promotion-tracking]` (empfohlen!)
-- `[data-banner-tracking]`
-- `.promotion-banner`
-- `.cms-element-image-slider[data-promotion="true"]`
-- `.banner-slider[data-promotion="true"]`
+Das Plugin erkennt Promotions in dieser Reihenfolge:
 
-**Für Produkt-Promotions:**
-- `.cms-element-product-slider` (automatisch erkannt!)
-- `.product-slider` (automatisch erkannt!)
-- `.product-carousel` (automatisch erkannt!)
-- Jedes Element mit `data-promotion-tracking` + enthaltenen Produkten (`[data-product-info]`)
+1. **PRIMARY:** CSS-Klasse `datalayer-promotion-{type}--{identifier}` ⭐ EMPFOHLEN
+2. **Fallback:** Data-Attribut `data-promotion-tracking`
+3. **Fallback:** Data-Attribut `data-banner-tracking`
+4. **Fallback:** CSS-Klasse `.promotion-banner`
 
 ---
 
-### Verfügbare Data-Attribute:
+### CSS-Klassen Convention:
 
-- `data-promotion-id` / `data-banner-id` - Eindeutige ID (z.B. "bestseller_slider")
-- `data-promotion-name` / `data-banner-name` - Name (z.B. "Unsere Bestseller")
-- `data-creative-name` / `data-banner-creative` - Creative-Name (z.B. "Hero Banner")
-- `data-creative-slot` / `data-banner-slot` - Position (z.B. "home_hero", "sidebar_top")
+**Schema:** `datalayer-promotion-{type}--{identifier}`
 
-**Hinweis:** Bei Produkt-Slidern versucht das Script automatisch, den Namen aus der Überschrift (`h2`, `h3`, `.slider-title`) zu extrahieren, falls `data-promotion-name` fehlt.
+**Typen:**
+- `slider` - Produktslider
+- `banner` - Banner/Bilder/Content
+
+**Identifier:**
+- Kleinbuchstaben, keine Leerzeichen
+- Wird automatisch als `promotion_id` verwendet
+- Wird automatisch beautified als `promotion_name` (erster Buchstabe groß)
+
+**Beispiele:**
+- `datalayer-promotion-slider--bestseller` → ID: `bestseller`, Name: `Bestseller`
+- `datalayer-promotion-banner--newsletter` → ID: `newsletter`, Name: `Newsletter`
+- `datalayer-promotion-slider--neueArtikel` → ID: `neueArtikel`, Name: `NeueArtikel`
+
+---
+
+### Data-Attribute (optional):
+
+Für erweiterte Kontrolle können Sie diese Attribute verwenden:
+
+- `data-promotion-id` - Überschreibt ID aus CSS-Klasse
+- `data-promotion-name` - Überschreibt automatischen Namen
+- `data-creative-name` - Creative-Name (z.B. "Hero Banner")
+- `data-creative-slot` - Position/Slot (z.B. "home_hero", "sidebar_top")
+- `data-promotion-tracking` - Explizit aktivieren (auch ohne CSS-Klasse)
 
 ---
 
@@ -368,7 +446,7 @@ window.dataLayer[window.dataLayer.length - 1];
 
 ## 🚀 Changelog
 
-### Version: Issue #10 + Hotfix (2025-12-30)
+### Version: Issue #10 + CSS Convention (2025-12-30)
 - ✨ **NEU:** `select_item` Event (Produkt-Klicks im Listing)
 - ✨ **NEU:** `search` Event (Suchfunktion-Tracking)
 - ✨ **NEU:** `view_promotion` Event (Banner-Impressions mit Intersection Observer)
@@ -376,7 +454,10 @@ window.dataLayer[window.dataLayer.length - 1];
 - ✨ **NEU:** Unterstützung für **zwei Promotion-Typen:**
   - Content-Promotions (Banner ohne Produkte)
   - Produkt-Promotions (Slider mit beworbenen Produkten)
-- ✨ **Automatische Erkennung** von Produkt-Slidern als Promotions
+- ⭐ **NEU:** **CSS-Klassen Convention** (BEM-Syntax)
+  - `datalayer-promotion-{type}--{identifier}`
+  - Einfach im Shopware Admin eintragbar
+  - Keine Template-Änderungen nötig!
 - 🎯 Alle Events GA4-konform
 - 🐛 Debug-Modus für alle neuen Events
 
