@@ -127,44 +127,181 @@ Alle Events enthalten folgende GA4-Felder:
 
 ## 🛠️ Setup für Promotions
 
-### HTML-Markup für Promotions/Banner:
+### Promotion-Typen
+
+Das Plugin unterstützt **zwei Arten** von Promotions:
+
+#### 1️⃣ **Content-Promotions** (Banner ohne Produkte)
+Beispiele: Newsletter-Banner, Adventskalender, Sale-Ankündigung, Versandkostenfrei-Banner
+
+#### 2️⃣ **Produkt-Promotions** (Slider mit beworbenen Produkten)
+Beispiele: "Unsere Bestseller", "Sale-Produkte", "Neue Artikel", "Empfehlungen"
+
+---
+
+### HTML-Markup für Promotions
+
+#### **Content-Promotion (Banner ohne Produkte):**
 
 ```html
 <!-- Einfaches Banner -->
 <div data-promotion-tracking
-     data-promotion-id="summer_sale_2025"
-     data-promotion-name="Summer Sale 2025"
-     data-creative-name="Banner Hero"
+     data-promotion-id="adventskalender_2025"
+     data-promotion-name="Adventskalender Gewinnspiel"
+     data-creative-name="Hero Banner"
      data-creative-slot="home_hero">
-    <a href="/sale">
-        <img src="banner.jpg" alt="Summer Sale">
+    <a href="/adventskalender">
+        <img src="adventskalender.jpg" alt="Adventskalender">
     </a>
 </div>
 
-<!-- Banner mit allen Optionen -->
-<a href="/promo"
+<!-- Newsletter-Banner -->
+<a href="/newsletter"
    data-promotion-tracking
-   data-promotion-id="black_friday"
-   data-promotion-name="Black Friday Deal"
+   data-promotion-id="newsletter_signup"
+   data-promotion-name="Newsletter Anmeldung"
    data-creative-name="Sidebar Banner"
    data-creative-slot="sidebar_top"
    class="promotion-banner">
-    <img src="black-friday.jpg" alt="Black Friday">
+    <img src="newsletter.jpg" alt="Newsletter">
 </a>
 ```
 
-**Erkannte CSS-Selektoren:**
+#### **Produkt-Promotion (Slider mit Produkten):**
+
+```html
+<!-- Bestseller-Slider (automatische Erkennung!) -->
+<div class="cms-element-product-slider product-slider"
+     data-promotion-tracking
+     data-promotion-id="bestseller_slider"
+     data-promotion-name="Unsere Bestseller"
+     data-creative-slot="home_bestseller">
+    <h2>Unsere beliebtesten Produkte</h2>
+
+    <!-- Produkte mit data-product-info werden automatisch erkannt! -->
+    <div class="product-box" data-product-info='{"item_id":"ABC123",...}'>
+        <!-- Produkt 1 -->
+    </div>
+    <div class="product-box" data-product-info='{"item_id":"DEF456",...}'>
+        <!-- Produkt 2 -->
+    </div>
+</div>
+
+<!-- Sale-Produkte Slider -->
+<div class="product-carousel"
+     data-promotion-tracking
+     data-promotion-id="sale_products"
+     data-promotion-name="Sale Produkte"
+     data-creative-name="Sale Carousel"
+     data-creative-slot="home_sale">
+    <h3 class="slider-title">Jetzt im Sale!</h3>
+
+    <!-- Die Produkte (mit data-product-info) -->
+    <div class="swiper-wrapper">
+        <!-- Produkte hier -->
+    </div>
+</div>
+```
+
+**💡 Automatische Erkennung:**
+Produkt-Slider mit den Klassen `.cms-element-product-slider`, `.product-slider` oder `.product-carousel` werden **automatisch als Promotions erkannt**, wenn sie Produkte mit `data-product-info` enthalten!
+
+---
+
+### Erkannte CSS-Selektoren:
+
+**Für Content-Promotions:**
 - `[data-promotion-tracking]` (empfohlen!)
 - `[data-banner-tracking]`
 - `.promotion-banner`
 - `.cms-element-image-slider[data-promotion="true"]`
 - `.banner-slider[data-promotion="true"]`
 
-**Verfügbare Data-Attribute:**
-- `data-promotion-id` / `data-banner-id`
-- `data-promotion-name` / `data-banner-name`
-- `data-creative-name` / `data-banner-creative`
-- `data-creative-slot` / `data-banner-slot`
+**Für Produkt-Promotions:**
+- `.cms-element-product-slider` (automatisch erkannt!)
+- `.product-slider` (automatisch erkannt!)
+- `.product-carousel` (automatisch erkannt!)
+- Jedes Element mit `data-promotion-tracking` + enthaltenen Produkten (`[data-product-info]`)
+
+---
+
+### Verfügbare Data-Attribute:
+
+- `data-promotion-id` / `data-banner-id` - Eindeutige ID (z.B. "bestseller_slider")
+- `data-promotion-name` / `data-banner-name` - Name (z.B. "Unsere Bestseller")
+- `data-creative-name` / `data-banner-creative` - Creative-Name (z.B. "Hero Banner")
+- `data-creative-slot` / `data-banner-slot` - Position (z.B. "home_hero", "sidebar_top")
+
+**Hinweis:** Bei Produkt-Slidern versucht das Script automatisch, den Namen aus der Überschrift (`h2`, `h3`, `.slider-title`) zu extrahieren, falls `data-promotion-name` fehlt.
+
+---
+
+### DataLayer-Ausgabe Beispiele:
+
+#### **Content-Promotion (Banner):**
+```javascript
+{
+  "event": "view_promotion",
+  "ecommerce": {
+    "promotion_id": "adventskalender_2025",
+    "promotion_name": "Adventskalender Gewinnspiel",
+    "items": [{
+      "promotion_id": "adventskalender_2025",
+      "promotion_name": "Adventskalender Gewinnspiel",
+      "creative_name": "Hero Banner",
+      "creative_slot": "home_hero"
+    }]
+  }
+}
+```
+
+#### **Produkt-Promotion (Bestseller-Slider):**
+```javascript
+{
+  "event": "view_promotion",
+  "ecommerce": {
+    "promotion_id": "bestseller_slider",
+    "promotion_name": "Unsere Bestseller",
+    "items": [
+      {
+        "item_id": "PROD-123",
+        "item_name": "Bestseller Produkt 1",
+        "price": 29.99,
+        "item_brand": "Marke A",
+        "promotion_id": "bestseller_slider",
+        "promotion_name": "Unsere Bestseller",
+        "creative_name": "Unsere Bestseller",
+        "creative_slot": "home_bestseller"
+        // ... alle weiteren Produktfelder
+      },
+      {
+        "item_id": "PROD-456",
+        "item_name": "Bestseller Produkt 2",
+        // ... weitere Produkte
+      }
+    ]
+  }
+}
+```
+
+#### **select_promotion (Produkt-Klick im Slider):**
+```javascript
+{
+  "event": "select_promotion",
+  "ecommerce": {
+    "promotion_id": "bestseller_slider",
+    "promotion_name": "Unsere Bestseller",
+    "items": [{
+      "item_id": "PROD-123",
+      "item_name": "Bestseller Produkt 1",
+      "price": 29.99,
+      "promotion_id": "bestseller_slider",
+      "promotion_name": "Unsere Bestseller",
+      // ... alle Produktfelder + Promotion-Felder
+    }]
+  }
+}
+```
 
 ---
 
@@ -231,11 +368,15 @@ window.dataLayer[window.dataLayer.length - 1];
 
 ## 🚀 Changelog
 
-### Version: Issue #10 (2025-12-30)
+### Version: Issue #10 + Hotfix (2025-12-30)
 - ✨ **NEU:** `select_item` Event (Produkt-Klicks im Listing)
 - ✨ **NEU:** `search` Event (Suchfunktion-Tracking)
 - ✨ **NEU:** `view_promotion` Event (Banner-Impressions mit Intersection Observer)
 - ✨ **NEU:** `select_promotion` Event (Banner-Klicks)
+- ✨ **NEU:** Unterstützung für **zwei Promotion-Typen:**
+  - Content-Promotions (Banner ohne Produkte)
+  - Produkt-Promotions (Slider mit beworbenen Produkten)
+- ✨ **Automatische Erkennung** von Produkt-Slidern als Promotions
 - 🎯 Alle Events GA4-konform
 - 🐛 Debug-Modus für alle neuen Events
 

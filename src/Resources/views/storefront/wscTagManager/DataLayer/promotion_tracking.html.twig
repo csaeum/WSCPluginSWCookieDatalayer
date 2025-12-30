@@ -20,11 +20,14 @@
 
     /**
      * Extract promotion data from element
+     * Supports two types:
+     * 1. Content promotions (banners without products)
+     * 2. Product promotions (sliders with products)
      */
     function getPromotionData(element) {
         if (window.__wscDebugMode) console.log('🔧 Extracting promotion data from:', element);
 
-        // Try to get data from data attributes
+        // Basic promotion info (for both types)
         const promotionId = element.getAttribute('data-promotion-id') ||
                            element.getAttribute('data-banner-id') ||
                            element.id ||
@@ -44,24 +47,77 @@
                             element.getAttribute('data-banner-slot') ||
                             'unknown_slot';
 
-        return {
+        const basePromotionData = {
             promotion_id: promotionId,
             promotion_name: promotionName,
             creative_name: creativeName,
             creative_slot: creativeSlot
         };
+
+        // Check if this is a PRODUCT promotion (slider with products)
+        const productElements = element.querySelectorAll('[data-product-info]');
+
+        if (productElements.length > 0) {
+            // This is a PRODUCT PROMOTION (e.g., "Best Sellers", "Sale Products")
+            if (window.__wscDebugMode) console.log('🔧 Product promotion detected with', productElements.length, 'products');
+
+            const items = [];
+            productElements.forEach(function(productEl) {
+                try {
+                    const productJson = productEl.getAttribute('data-product-info');
+                    if (!productJson) return;
+
+                    const productData = JSON.parse(productJson);
+
+                    // Add promotion info to product data
+                    productData.promotion_id = promotionId;
+                    productData.promotion_name = promotionName;
+                    productData.creative_name = creativeName;
+                    productData.creative_slot = creativeSlot;
+
+                    items.push(productData);
+                } catch (e) {
+                    if (window.__wscDebugMode) console.warn('🔧 Failed to parse product data in promotion:', e);
+                }
+            });
+
+            return {
+                type: 'product_promotion',
+                items: items,
+                promotion_info: basePromotionData
+            };
+        } else {
+            // This is a CONTENT PROMOTION (banner without products)
+            if (window.__wscDebugMode) console.log('🔧 Content promotion detected (no products)');
+
+            return {
+                type: 'content_promotion',
+                items: [basePromotionData],
+                promotion_info: basePromotionData
+            };
+        }
     }
 
     /**
      * Push promotion event to dataLayer and mtmLayer
      */
-    function pushPromotionEvent(eventName, promotionData) {
+    function pushPromotionEvent(eventName, promotionDataResult) {
+        // promotionDataResult can be either:
+        // - {type: 'product_promotion', items: [...products...], promotion_info: {...}}
+        // - {type: 'content_promotion', items: [{promotion_id, ...}], promotion_info: {...}}
+
         const eventData = {
             event: eventName,
             ecommerce: {
-                items: [promotionData]
+                items: promotionDataResult.items
             }
         };
+
+        // Add promotion_id and promotion_name to top level for easier filtering in GA4
+        if (promotionDataResult.promotion_info) {
+            eventData.ecommerce.promotion_id = promotionDataResult.promotion_info.promotion_id;
+            eventData.ecommerce.promotion_name = promotionDataResult.promotion_info.promotion_name;
+        }
 
         // Push to Google Analytics / GTM
         if (Array.isArray(dataLayer)) {
@@ -76,7 +132,8 @@
         }
 
         if (window.__wscDebugMode) {
-            console.log('🎨 WSC Promotion Event pushed:', eventName, eventData);
+            console.log('🎨 WSC Promotion Event pushed:', eventName, promotionDataResult.type, eventData);
+            console.log('   Items:', promotionDataResult.items.length, promotionDataResult.type === 'product_promotion' ? 'products' : 'promotion');
         }
     }
 
@@ -143,6 +200,26 @@
         promotionElements.forEach(function(element) {
             observer.observe(element);
         });
+
+        // ALSO observe product sliders that might be promotions but don't have explicit data-promotion-tracking
+        // Look for product sliders with specific CMS element classes
+        const productSliders = document.querySelectorAll('.cms-element-product-slider, .product-slider, .product-carousel');
+        productSliders.forEach(function(slider) {
+            // Check if slider has products with data-product-info
+            if (slider.querySelectorAll('[data-product-info]').length > 0) {
+                // Add a default promotion tracking attribute if not set
+                if (!slider.hasAttribute('data-promotion-tracking') && !slider.hasAttribute('data-banner-tracking')) {
+                    slider.setAttribute('data-promotion-tracking', 'auto');
+                    // Try to extract name from heading
+                    const heading = slider.querySelector('h2, h3, .cms-element-product-slider-title, .slider-title');
+                    if (heading) {
+                        slider.setAttribute('data-promotion-name', heading.textContent.trim());
+                    }
+                    observer.observe(slider);
+                    if (window.__wscDebugMode) console.log('🔧 Auto-detected product slider as promotion:', slider);
+                }
+            }
+        });
     }
 
     /**
@@ -155,20 +232,62 @@
             const target = event.target instanceof Element ? event.target : null;
             if (!target) return;
 
-            // Find promotion element
+            // Find promotion element (banner or product slider)
             const promotionElement = target.closest(
-                '[data-promotion-tracking], [data-banner-tracking], .promotion-banner, .banner-link[data-promotion="true"]'
+                '[data-promotion-tracking], [data-banner-tracking], .promotion-banner, .banner-link[data-promotion="true"], .cms-element-product-slider, .product-slider, .product-carousel'
             );
 
             if (!promotionElement) return;
 
-            if (window.__wscDebugMode) console.log('🔧 Promotion clicked:', promotionElement);
+            // Check if this is a product click within a promotion (product slider)
+            const clickedProduct = target.closest('[data-product-info]');
 
-            const promotionData = getPromotionData(promotionElement);
+            if (clickedProduct) {
+                // User clicked a specific product in the promotion/slider
+                if (window.__wscDebugMode) console.log('🔧 Product clicked in promotion:', clickedProduct);
 
-            if (window.__wscDebugMode) console.log('🔧 Pushing select_promotion event:', promotionData);
+                try {
+                    const productJson = clickedProduct.getAttribute('data-product-info');
+                    if (!productJson) return;
 
-            pushPromotionEvent('select_promotion', promotionData);
+                    const productData = JSON.parse(productJson);
+
+                    // Add promotion info to the product
+                    const promotionId = promotionElement.getAttribute('data-promotion-id') ||
+                                       promotionElement.getAttribute('data-promotion-name') ||
+                                       'product_slider';
+                    const promotionName = promotionElement.getAttribute('data-promotion-name') || 'Product Slider';
+
+                    productData.promotion_id = promotionId;
+                    productData.promotion_name = promotionName;
+                    productData.creative_name = promotionElement.getAttribute('data-creative-name') || promotionName;
+                    productData.creative_slot = promotionElement.getAttribute('data-creative-slot') || 'unknown';
+
+                    if (window.__wscDebugMode) console.log('🔧 Pushing select_promotion event for product:', productData);
+
+                    pushPromotionEvent('select_promotion', {
+                        type: 'product_promotion',
+                        items: [productData],
+                        promotion_info: {
+                            promotion_id: promotionId,
+                            promotion_name: promotionName
+                        }
+                    });
+
+                } catch (e) {
+                    if (window.__wscDebugMode) console.warn('🔧 Failed to parse product in promotion:', e);
+                }
+
+            } else {
+                // User clicked the promotion banner itself (not a specific product)
+                if (window.__wscDebugMode) console.log('🔧 Promotion banner clicked:', promotionElement);
+
+                const promotionData = getPromotionData(promotionElement);
+
+                if (window.__wscDebugMode) console.log('🔧 Pushing select_promotion event:', promotionData);
+
+                pushPromotionEvent('select_promotion', promotionData);
+            }
         }, true);
     }
 
