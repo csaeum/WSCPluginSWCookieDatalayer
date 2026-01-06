@@ -1,6 +1,6 @@
 {
   "name": "wsc/sw-cookie-data-layer",
-  "version": "6.7.5.1",
+  "version": "0.9",
   "description": "WSC | CookieConsent + DataLayer + TagManager",
   "type": "shopware-platform-plugin",
   "license": "GPL-3.0-or-later",
