@@ -11,6 +11,7 @@ use Shopware\Storefront\Page\Checkout\Finish\CheckoutFinishPageLoadedEvent;
 use Shopware\Core\Content\Product\Events\ProductListingResultEvent;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
 use WSC\SWCookieDataLayer\Service\DataLayerBuilder;
+use WSC\SWCookieDataLayer\Service\JitsuClient;
 use WSC\SWCookieDataLayer\Struct\DataLayerStruct;
 use WSC\SWCookieDataLayer\Extension\DataLayerPageExtension;
 use Psr\Log\LoggerInterface;
@@ -18,22 +19,26 @@ use Psr\Log\LoggerInterface;
 /**
  * DataLayerSubscriber
  *
- * Subscribes to Shopware page events and builds DataLayer events for Google Analytics 4 and Matomo.
+ * Subscribes to Shopware page events and builds DataLayer events for Google Analytics 4, Matomo, and Jitsu.
  * Implements Issue #22: Event Subscriber für E-Commerce-Events
  * Issue #1: Added PSR-3 Logger and Debug Mode support
+ * Added: Jitsu server-side tracking integration
  */
 class DataLayerSubscriber implements EventSubscriberInterface
 {
     private DataLayerBuilder $dataLayerBuilder;
+    private JitsuClient $jitsuClient;
     private LoggerInterface $logger;
     private SystemConfigService $systemConfigService;
 
     public function __construct(
         DataLayerBuilder $dataLayerBuilder,
+        JitsuClient $jitsuClient,
         LoggerInterface $logger,
         SystemConfigService $systemConfigService
     ) {
         $this->dataLayerBuilder = $dataLayerBuilder;
+        $this->jitsuClient = $jitsuClient;
         $this->logger = $logger;
         $this->systemConfigService = $systemConfigService;
     }
@@ -98,6 +103,14 @@ class DataLayerSubscriber implements EventSubscriberInterface
                 $event->getRequest()->attributes->get('_route')
             );
             $page->addExtension('wscDataLayer', new DataLayerPageExtension($dataLayerStruct));
+
+            // Send event to Jitsu
+            $this->trackToJitsu(
+                'view_item',
+                $dataLayerEvent['ecommerce'] ?? [],
+                $event->getSalesChannelContext(),
+                $event->getRequest()
+            );
 
             if ($debugMode) {
                 $this->logger->info('WSC DataLayer Subscriber: DataLayer extension added to page', [
@@ -164,6 +177,14 @@ class DataLayerSubscriber implements EventSubscriberInterface
                 $request->attributes->get('_route')
             );
             $page->addExtension('wscDataLayer', new DataLayerPageExtension($dataLayerStruct));
+
+            // Send event to Jitsu
+            $this->trackToJitsu(
+                'view_item_list',
+                $dataLayerEvent['ecommerce'] ?? [],
+                $event->getSalesChannelContext(),
+                $request
+            );
         } else {
             // No listing data available (e.g., custom page without product listing)
             // Don't add extension - template will show warning in debug mode
@@ -198,6 +219,14 @@ class DataLayerSubscriber implements EventSubscriberInterface
                 $event->getRequest()->attributes->get('_route')
             );
             $page->addExtension('wscDataLayer', new DataLayerPageExtension($dataLayerStruct));
+
+            // Send event to Jitsu
+            $this->trackToJitsu(
+                'view_cart',
+                $dataLayerEvent['ecommerce'] ?? [],
+                $event->getSalesChannelContext(),
+                $event->getRequest()
+            );
 
             if ($debugMode) {
                 $this->logger->info('WSC DataLayer Subscriber: DataLayer extension added to page (view_cart)');
@@ -239,6 +268,20 @@ class DataLayerSubscriber implements EventSubscriberInterface
                 $event->getRequest()->attributes->get('_route')
             );
             $page->addExtension('wscDataLayer', new DataLayerPageExtension($dataLayerStruct));
+
+            // Send event to Jitsu
+            $this->trackToJitsu(
+                'begin_checkout',
+                $dataLayerEvent['ecommerce'] ?? [],
+                $event->getSalesChannelContext(),
+                $event->getRequest()
+            );
+
+            // Track shipping info if available
+            $this->trackShippingInfo($cart, $event->getSalesChannelContext(), $event->getRequest());
+
+            // Track payment info if available
+            $this->trackPaymentInfo($cart, $event->getSalesChannelContext(), $event->getRequest());
 
             if ($debugMode) {
                 $this->logger->info('WSC DataLayer Subscriber: DataLayer extension added to page (begin_checkout)');
@@ -287,6 +330,14 @@ class DataLayerSubscriber implements EventSubscriberInterface
             );
             $page->addExtension('wscDataLayer', new DataLayerPageExtension($dataLayerStruct));
 
+            // Send event to Jitsu
+            $this->trackToJitsu(
+                'purchase',
+                $dataLayerEvent['ecommerce'] ?? [],
+                $event->getSalesChannelContext(),
+                $event->getRequest()
+            );
+
             if ($debugMode) {
                 $this->logger->info('WSC DataLayer Subscriber: DataLayer extension added to page (PURCHASE)', [
                     'orderNumber' => $order->getOrderNumber(),
@@ -298,6 +349,113 @@ class DataLayerSubscriber implements EventSubscriberInterface
             $this->logger->critical('WSC DataLayer Subscriber: CRITICAL Exception in onCheckoutFinishPageLoaded (PURCHASE)', [
                 'error' => $e->getMessage(),
                 'trace' => $debugMode ? $e->getTraceAsString() : 'Enable debug mode for stack trace',
+            ]);
+        }
+    }
+
+    /**
+     * Helper method to send event to Jitsu
+     */
+    private function trackToJitsu(
+        string $eventName,
+        array $properties,
+        $salesChannelContext,
+        $request
+    ): void {
+        try {
+            // Get session ID from request (fallback to 'unknown' if not available)
+            $session = $request->hasSession() ? $request->getSession() : null;
+            $sessionId = $session?->getId() ?? 'unknown';
+
+            // Get customer from context (null for guests)
+            $customer = $salesChannelContext->getCustomer();
+
+            // Get sales channel ID for config lookup
+            $salesChannelId = $salesChannelContext->getSalesChannelId();
+
+            // Track event to Jitsu
+            $this->jitsuClient->track(
+                $eventName,
+                $properties,
+                $customer,
+                $sessionId,
+                $salesChannelId
+            );
+        } catch (\Throwable $e) {
+            // Don't let Jitsu tracking errors break the page
+            $this->logger->error('WSC DataLayer Subscriber: Failed to track to Jitsu', [
+                'event' => $eventName,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Track shipping info if available in cart
+     */
+    private function trackShippingInfo($cart, $salesChannelContext, $request): void
+    {
+        try {
+            $deliveries = $cart->getDeliveries();
+
+            if ($deliveries && $deliveries->count() > 0) {
+                $delivery = $deliveries->first();
+                $shippingMethod = $delivery?->getShippingMethod();
+
+                if ($shippingMethod) {
+                    $properties = [
+                        'currency' => $salesChannelContext->getCurrency()->getIsoCode(),
+                        'value' => $cart->getPrice()->getTotalPrice(),
+                        'coupon' => '', // TODO: Extract coupon if available
+                        'shipping_tier' => $shippingMethod->getName(),
+                    ];
+
+                    $this->trackToJitsu(
+                        'add_shipping_info',
+                        $properties,
+                        $salesChannelContext,
+                        $request
+                    );
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->logger->error('WSC DataLayer Subscriber: Failed to track shipping info', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Track payment info if available in cart
+     */
+    private function trackPaymentInfo($cart, $salesChannelContext, $request): void
+    {
+        try {
+            $transactions = $cart->getTransactions();
+
+            if ($transactions && $transactions->count() > 0) {
+                $transaction = $transactions->first();
+                $paymentMethod = $transaction?->getPaymentMethod();
+
+                if ($paymentMethod) {
+                    $properties = [
+                        'currency' => $salesChannelContext->getCurrency()->getIsoCode(),
+                        'value' => $cart->getPrice()->getTotalPrice(),
+                        'coupon' => '', // TODO: Extract coupon if available
+                        'payment_type' => $paymentMethod->getName(),
+                    ];
+
+                    $this->trackToJitsu(
+                        'add_payment_info',
+                        $properties,
+                        $salesChannelContext,
+                        $request
+                    );
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->logger->error('WSC DataLayer Subscriber: Failed to track payment info', [
+                'error' => $e->getMessage(),
             ]);
         }
     }

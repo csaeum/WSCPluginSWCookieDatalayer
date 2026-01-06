@@ -10,8 +10,21 @@
         <!-- DataLayerBuilder Service -->
         <service id="WSC\SWCookieDataLayer\Service\DataLayerBuilder"/>
 
+        <!-- JitsuClient Service -->
+        <service id="WSC\SWCookieDataLayer\Service\JitsuClient"/>
+
         <!-- DataLayerSubscriber -->
         <service id="WSC\SWCookieDataLayer\Subscriber\DataLayerSubscriber">
+            <tag name="kernel.event_subscriber"/>
+        </service>
+
+        <!-- JitsuTrackingSubscriber -->
+        <service id="WSC\SWCookieDataLayer\Subscriber\JitsuTrackingSubscriber">
+            <argument type="service" id="WSC\SWCookieDataLayer\Service\JitsuClient"/>
+            <argument type="service" id="logger"/>
+            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
+            <argument type="service" id="request_stack"/>
+            <argument type="service" id="product.repository"/>
             <tag name="kernel.event_subscriber"/>
         </service>
 

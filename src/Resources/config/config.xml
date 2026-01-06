@@ -635,6 +635,74 @@
     </card>
 
     <card>
+        <title lang="de-DE">Jitsu</title>
+        <title lang="en-GB">Jitsu</title>
+        <title lang="fr-FR">Jitsu</title>
+
+        <input-field type="bool">
+            <name>wscTagManagerJitsu</name>
+            <label lang="de-DE">Jitsu Server-Side Tracking aktivieren</label>
+            <label lang="en-GB">Activate Jitsu Server-Side Tracking</label>
+            <label lang="fr-FR">Activer le suivi côté serveur Jitsu</label>
+            <helpText lang="de-DE">Aktiviert das serverseitige Event-Tracking zu Ihrer selbst-gehosteten Jitsu-Instanz. Events werden asynchron übertragen ohne die Shop-Performance zu beeinflussen.</helpText>
+            <helpText lang="en-GB">Activates server-side event tracking to your self-hosted Jitsu instance. Events are transmitted asynchronously without affecting shop performance.</helpText>
+            <helpText lang="fr-FR">Active le suivi des événements côté serveur vers votre instance Jitsu auto-hébergée. Les événements sont transmis de manière asynchrone sans affecter les performances de la boutique.</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="url">
+            <name>wscTagManagerJitsuUrl</name>
+            <label lang="de-DE">Jitsu Server URL</label>
+            <label lang="en-GB">Jitsu Server URL</label>
+            <label lang="fr-FR">URL du serveur Jitsu</label>
+            <helpText lang="de-DE">Vollständige URL zu Ihrer Jitsu-Instanz (z.B. https://jitsu.example.com). Der API-Endpoint /api/s/s2s/track wird automatisch angehängt.</helpText>
+            <helpText lang="en-GB">Full URL to your Jitsu instance (e.g. https://jitsu.example.com). The API endpoint /api/s/s2s/track will be appended automatically.</helpText>
+            <helpText lang="fr-FR">URL complète de votre instance Jitsu (par ex. https://jitsu.example.com). Le point de terminaison API /api/s/s2s/track sera ajouté automatiquement.</helpText>
+            <placeholder lang="de-DE">https://jitsu.example.com</placeholder>
+            <placeholder lang="en-GB">https://jitsu.example.com</placeholder>
+            <placeholder lang="fr-FR">https://jitsu.example.com</placeholder>
+            <copyable>true</copyable>
+        </input-field>
+
+        <input-field type="text">
+            <name>wscTagManagerJitsuWriteKey</name>
+            <label lang="de-DE">Jitsu Write-Key</label>
+            <label lang="en-GB">Jitsu Write-Key</label>
+            <label lang="fr-FR">Clé d'écriture Jitsu</label>
+            <helpText lang="de-DE">API Write-Key aus Ihrer Jitsu-Konfiguration für die Authentifizierung der Server-to-Server Events.</helpText>
+            <helpText lang="en-GB">API Write-Key from your Jitsu configuration for authenticating server-to-server events.</helpText>
+            <helpText lang="fr-FR">Clé d'écriture API de votre configuration Jitsu pour l'authentification des événements serveur à serveur.</helpText>
+            <placeholder lang="de-DE">s2s.xxxxxxxx.xxxxxxxxxxxx</placeholder>
+            <placeholder lang="en-GB">s2s.xxxxxxxx.xxxxxxxxxxxx</placeholder>
+            <placeholder lang="fr-FR">s2s.xxxxxxxx.xxxxxxxxxxxx</placeholder>
+            <copyable>true</copyable>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscTagManagerJitsuDebug</name>
+            <label lang="de-DE">Jitsu Debug-Modus aktivieren</label>
+            <label lang="en-GB">Activate Jitsu Debug Mode</label>
+            <label lang="fr-FR">Activer le mode de débogage Jitsu</label>
+            <helpText lang="de-DE">Aktiviert ausführliche Debug-Logs für Jitsu-API-Calls im Server-Log. Zeigt Request/Response-Details, Fehler und Timing-Informationen. Nur für Entwicklung/Testing aktivieren!</helpText>
+            <helpText lang="en-GB">Activates detailed debug logs for Jitsu API calls in server log. Shows request/response details, errors and timing information. Only activate for development/testing!</helpText>
+            <helpText lang="fr-FR">Active les journaux de débogage détaillés pour les appels API Jitsu dans le journal du serveur. Affiche les détails de requête/réponse, les erreurs et les informations de timing. Activer uniquement pour le développement/test!</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscTagManagerJitsuVerifySsl</name>
+            <label lang="de-DE">SSL-Zertifikat verifizieren</label>
+            <label lang="en-GB">Verify SSL Certificate</label>
+            <label lang="fr-FR">Vérifier le certificat SSL</label>
+            <helpText lang="de-DE">Deaktivieren Sie diese Option nur bei selbstsignierten SSL-Zertifikaten in Entwicklungs-/Test-Umgebungen. In Produktion sollte dies IMMER aktiviert sein!</helpText>
+            <helpText lang="en-GB">Disable this option only for self-signed SSL certificates in development/test environments. In production this should ALWAYS be enabled!</helpText>
+            <helpText lang="fr-FR">Désactivez cette option uniquement pour les certificats SSL auto-signés dans les environnements de développement/test. En production, cela devrait TOUJOURS être activé!</helpText>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+    </card>
+
+    <card>
         <title lang="de-DE">Eigene Skripte</title>
         <title lang="en-GB">Custom Scripts</title>
         <title lang="fr-FR">Scripts personnalisés</title>
