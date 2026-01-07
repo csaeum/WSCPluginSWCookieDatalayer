@@ -1,8 +1,157 @@
-'event': 'login',
-'method': 'Account Login',
-{% set customer = context.customer|default(null) %}
-'user': {
-    'user_email': '{{ customer ? customer.email|default('')|e('js') : '' }}',
-    'user_country': '{{ customer and customer.defaultBillingAddress and customer.defaultBillingAddress.country ? customer.defaultBillingAddress.country.translated.name|default('')|e('js') : '' }}',
-    'user_city': '{{ customer and customer.defaultBillingAddress ? customer.defaultBillingAddress.city|default('')|e('js') : '' }}'
-}
+{# Login Event Tracking with SHA-256 Hashing #}
+<script>
+(function() {
+    'use strict';
+
+    if (window.__wscDebugMode) console.log('🔧 WSC Login Tracking: Loading...');
+
+    // Check if already initialized
+    if (window.__wscLoginTrackerInitialized) {
+        if (window.__wscDebugMode) console.log('🔧 WSC Login Tracking: Already initialized, skipping');
+        return;
+    }
+    window.__wscLoginTrackerInitialized = true;
+
+    const dataLayer = window.dataLayer || [];
+    const mtmLayer = window._mtm || [];
+
+    // Check if user data hashing is enabled (from backend config)
+    const hashUserData = {{ config('WscSwCookieDataLayer.config.wscTagManagerHashUserData') ? 'true' : 'false' }};
+
+    /**
+     * SHA-256 Hash function (client-side)
+     * Compatible with Google Enhanced Conversions standard
+     */
+    async function sha256Hash(value) {
+        if (!value) return '';
+
+        // Normalize: trim + lowercase (Google Enhanced Conversions standard)
+        const normalized = value.trim().toLowerCase();
+
+        // Use Web Crypto API for SHA-256
+        const encoder = new TextEncoder();
+        const data = encoder.encode(normalized);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+        return hashHex;
+    }
+
+    /**
+     * Hash user data object if hashing is enabled
+     */
+    async function hashUserDataIfEnabled(userData) {
+        if (!hashUserData) {
+            // Hashing disabled (testing mode)
+            return userData;
+        }
+
+        // Hash PII fields
+        const hashedData = {
+            user_email: userData.user_email ? await sha256Hash(userData.user_email) : '',
+            user_country: userData.user_country || '', // Not PII, keep plaintext
+            user_city: userData.user_city || '', // Not PII, keep plaintext
+        };
+
+        if (window.__wscDebugMode) {
+            console.log('🔐 User data hashed (SHA-256):', hashedData);
+        }
+
+        return hashedData;
+    }
+
+    /**
+     * Push login event to dataLayer and mtmLayer
+     */
+    async function pushLoginEvent(userData) {
+        // Hash user data if enabled
+        const processedUserData = await hashUserDataIfEnabled(userData);
+
+        const eventData = {
+            event: 'login',
+            method: 'Account Login',
+            user: processedUserData
+        };
+
+        // Push to Google Analytics / GTM
+        if (Array.isArray(dataLayer)) {
+            dataLayer.push(eventData);
+        }
+
+        // Push to Matomo
+        if (Array.isArray(mtmLayer)) {
+            mtmLayer.push(eventData);
+        }
+
+        if (window.__wscDebugMode) {
+            console.log('👤 WSC Login Event pushed:', eventData);
+            console.log('   Hashing enabled:', hashUserData);
+        }
+    }
+
+    /**
+     * Check if login was successful and trigger event
+     * Detect login via:
+     * 1. URL contains /account/login with success message
+     * 2. Account menu is visible (user is logged in)
+     * 3. Session storage flag (set by login form)
+     */
+    function checkLoginSuccess() {
+        // Check if we're on account page after login
+        const isAccountPage = window.location.pathname.includes('/account');
+        const hasSuccessMessage = document.querySelector('.alert-success, .flashbags .alert.alert-success');
+
+        // Check if login event was already triggered in this session
+        const loginEventFired = sessionStorage.getItem('wsc_login_event_fired');
+
+        if (loginEventFired === 'true') {
+            if (window.__wscDebugMode) console.log('🔧 Login event already fired in this session');
+            return;
+        }
+
+        // Check if user is logged in (account menu visible)
+        const accountMenu = document.querySelector('.account-menu, [data-account-menu]');
+        const isLoggedIn = accountMenu && !accountMenu.classList.contains('d-none');
+
+        // Trigger login event if:
+        // - User is on account page with success message OR
+        // - User just became logged in (account menu visible)
+        if ((isAccountPage && hasSuccessMessage) || isLoggedIn) {
+            if (window.__wscDebugMode) console.log('🔧 Login detected! Triggering login event...');
+
+            // Get user data from backend
+            {% set customer = context.customer|default(null) %}
+            const userData = {
+                user_email: '{{ customer ? customer.email|default('')|e('js') : '' }}',
+                user_country: '{{ customer and customer.defaultBillingAddress and customer.defaultBillingAddress.country ? customer.defaultBillingAddress.country.translated.name|default('')|e('js') : '' }}',
+                user_city: '{{ customer and customer.defaultBillingAddress ? customer.defaultBillingAddress.city|default('')|e('js') : '' }}'
+            };
+
+            // Only fire if we have user email
+            if (userData.user_email) {
+                pushLoginEvent(userData);
+
+                // Mark as fired in session
+                sessionStorage.setItem('wsc_login_event_fired', 'true');
+            } else {
+                if (window.__wscDebugMode) console.warn('🔧 Login detected but no user email available');
+            }
+        }
+    }
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        if (window.__wscDebugMode) console.log('🔧 DOM is still loading, waiting for DOMContentLoaded...');
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.__wscDebugMode) console.log('🔧 DOMContentLoaded fired, checking login status...');
+            checkLoginSuccess();
+            if (window.__wscDebugMode) console.log('✅ WSC Login tracking initialized!');
+        });
+    } else {
+        if (window.__wscDebugMode) console.log('🔧 DOM already loaded, checking login status immediately...');
+        checkLoginSuccess();
+        if (window.__wscDebugMode) console.log('✅ WSC Login tracking initialized!');
+    }
+})();
+</script>

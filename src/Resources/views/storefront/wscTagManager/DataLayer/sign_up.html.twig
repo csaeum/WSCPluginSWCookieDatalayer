@@ -1,8 +1,160 @@
-'event': 'sign_up',
-'method': 'Register Account',
-{% set customer = context.customer|default(null) %}
-'user': {
-    'user_email': '{{ customer ? customer.email|default('')|e('js') : '' }}',
-    'user_country': '{{ customer and customer.defaultBillingAddress and customer.defaultBillingAddress.country ? customer.defaultBillingAddress.country.translated.name|default('')|e('js') : '' }}',
-    'user_city': '{{ customer and customer.defaultBillingAddress ? customer.defaultBillingAddress.city|default('')|e('js') : '' }}'
-}
+{# Sign Up Event Tracking with SHA-256 Hashing #}
+<script>
+(function() {
+    'use strict';
+
+    if (window.__wscDebugMode) console.log('🔧 WSC Sign Up Tracking: Loading...');
+
+    // Check if already initialized
+    if (window.__wscSignUpTrackerInitialized) {
+        if (window.__wscDebugMode) console.log('🔧 WSC Sign Up Tracking: Already initialized, skipping');
+        return;
+    }
+    window.__wscSignUpTrackerInitialized = true;
+
+    const dataLayer = window.dataLayer || [];
+    const mtmLayer = window._mtm || [];
+
+    // Check if user data hashing is enabled (from backend config)
+    const hashUserData = {{ config('WscSwCookieDataLayer.config.wscTagManagerHashUserData') ? 'true' : 'false' }};
+
+    /**
+     * SHA-256 Hash function (client-side)
+     * Compatible with Google Enhanced Conversions standard
+     */
+    async function sha256Hash(value) {
+        if (!value) return '';
+
+        // Normalize: trim + lowercase (Google Enhanced Conversions standard)
+        const normalized = value.trim().toLowerCase();
+
+        // Use Web Crypto API for SHA-256
+        const encoder = new TextEncoder();
+        const data = encoder.encode(normalized);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+        return hashHex;
+    }
+
+    /**
+     * Hash user data object if hashing is enabled
+     */
+    async function hashUserDataIfEnabled(userData) {
+        if (!hashUserData) {
+            // Hashing disabled (testing mode)
+            return userData;
+        }
+
+        // Hash PII fields
+        const hashedData = {
+            user_email: userData.user_email ? await sha256Hash(userData.user_email) : '',
+            user_country: userData.user_country || '', // Not PII, keep plaintext
+            user_city: userData.user_city || '', // Not PII, keep plaintext
+        };
+
+        if (window.__wscDebugMode) {
+            console.log('🔐 User data hashed (SHA-256):', hashedData);
+        }
+
+        return hashedData;
+    }
+
+    /**
+     * Push sign_up event to dataLayer and mtmLayer
+     */
+    async function pushSignUpEvent(userData) {
+        // Hash user data if enabled
+        const processedUserData = await hashUserDataIfEnabled(userData);
+
+        const eventData = {
+            event: 'sign_up',
+            method: 'Register Account',
+            user: processedUserData
+        };
+
+        // Push to Google Analytics / GTM
+        if (Array.isArray(dataLayer)) {
+            dataLayer.push(eventData);
+        }
+
+        // Push to Matomo
+        if (Array.isArray(mtmLayer)) {
+            mtmLayer.push(eventData);
+        }
+
+        if (window.__wscDebugMode) {
+            console.log('✍️ WSC Sign Up Event pushed:', eventData);
+            console.log('   Hashing enabled:', hashUserData);
+        }
+    }
+
+    /**
+     * Check if registration was successful and trigger event
+     * Detect registration via:
+     * 1. URL contains /register or /account/register with success message
+     * 2. User is logged in AND has never triggered sign_up before (first-time registration)
+     * 3. Session storage flag prevents duplicate events
+     */
+    function checkSignUpSuccess() {
+        // Check if we're on account/register page after registration
+        const isRegisterPage = window.location.pathname.includes('/register');
+        const isAccountPage = window.location.pathname.includes('/account');
+        const hasSuccessMessage = document.querySelector('.alert-success, .flashbags .alert.alert-success');
+
+        // Check if sign_up event was already triggered (ever - use localStorage for persistence)
+        const signUpEventFired = localStorage.getItem('wsc_sign_up_event_fired');
+
+        if (signUpEventFired === 'true') {
+            if (window.__wscDebugMode) console.log('🔧 Sign up event already fired before (returning user)');
+            return;
+        }
+
+        // Check if user is logged in (account menu visible)
+        const accountMenu = document.querySelector('.account-menu, [data-account-menu]');
+        const isLoggedIn = accountMenu && !accountMenu.classList.contains('d-none');
+
+        // Trigger sign_up event if:
+        // - User is on register/account page with success message OR
+        // - User just became logged in for the first time (never fired sign_up before)
+        if ((isRegisterPage || isAccountPage) && hasSuccessMessage && isLoggedIn) {
+            if (window.__wscDebugMode) console.log('🔧 Registration detected! Triggering sign_up event...');
+
+            // Get user data from backend
+            {% set customer = context.customer|default(null) %}
+            const userData = {
+                user_email: '{{ customer ? customer.email|default('')|e('js') : '' }}',
+                user_country: '{{ customer and customer.defaultBillingAddress and customer.defaultBillingAddress.country ? customer.defaultBillingAddress.country.translated.name|default('')|e('js') : '' }}',
+                user_city: '{{ customer and customer.defaultBillingAddress ? customer.defaultBillingAddress.city|default('')|e('js') : '' }}'
+            };
+
+            // Only fire if we have user email
+            if (userData.user_email) {
+                pushSignUpEvent(userData);
+
+                // Mark as fired (use localStorage so it persists across sessions)
+                localStorage.setItem('wsc_sign_up_event_fired', 'true');
+
+                if (window.__wscDebugMode) console.log('🔧 Sign up event marked as fired in localStorage (permanent)');
+            } else {
+                if (window.__wscDebugMode) console.warn('🔧 Registration detected but no user email available');
+            }
+        }
+    }
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        if (window.__wscDebugMode) console.log('🔧 DOM is still loading, waiting for DOMContentLoaded...');
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.__wscDebugMode) console.log('🔧 DOMContentLoaded fired, checking registration status...');
+            checkSignUpSuccess();
+            if (window.__wscDebugMode) console.log('✅ WSC Sign Up tracking initialized!');
+        });
+    } else {
+        if (window.__wscDebugMode) console.log('🔧 DOM already loaded, checking registration status immediately...');
+        checkSignUpSuccess();
+        if (window.__wscDebugMode) console.log('✅ WSC Sign Up tracking initialized!');
+    }
+})();
+</script>

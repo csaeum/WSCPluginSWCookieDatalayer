@@ -16,11 +16,12 @@
     const mtmLayer = window._mtm || [];
 
     /**
-     * Push search event to dataLayer and mtmLayer
+     * Push view_search_results event to dataLayer and mtmLayer
+     * GA4 Standard: view_search_results (not "search")
      */
     function pushSearchEvent(searchTerm) {
         const eventData = {
-            event: 'search',
+            event: 'view_search_results',  // GA4 Standard event name
             search_term: searchTerm
         };
 
@@ -35,7 +36,7 @@
         }
 
         if (window.__wscDebugMode) {
-            console.log('🔍 WSC Search Event pushed:', eventData);
+            console.log('🔍 WSC view_search_results Event pushed:', eventData);
         }
     }
 

@@ -1,0 +1,260 @@
+{# Generate Lead Event Tracking #}
+<script>
+(function() {
+    'use strict';
+
+    if (window.__wscDebugMode) console.log('🔧 WSC Generate Lead Tracking: Loading...');
+
+    // Check if already initialized
+    if (window.__wscLeadTrackerInitialized) {
+        if (window.__wscDebugMode) console.log('🔧 WSC Generate Lead Tracking: Already initialized, skipping');
+        return;
+    }
+    window.__wscLeadTrackerInitialized = true;
+
+    const dataLayer = window.dataLayer || [];
+    const mtmLayer = window._mtm || [];
+
+    /**
+     * Push generate_lead event to dataLayer and mtmLayer
+     */
+    function pushLeadEvent(formName, additionalData = {}) {
+        const eventData = {
+            event: 'generate_lead',
+            form_name: formName,
+            ...additionalData
+        };
+
+        // Push to Google Analytics / GTM
+        if (Array.isArray(dataLayer)) {
+            dataLayer.push(eventData);
+        }
+
+        // Push to Matomo
+        if (Array.isArray(mtmLayer)) {
+            mtmLayer.push(eventData);
+        }
+
+        if (window.__wscDebugMode) {
+            console.log('📝 WSC Generate Lead Event pushed:', eventData);
+        }
+    }
+
+    /**
+     * Determine form name from form element
+     */
+    function getFormName(form) {
+        // Try to get form name from various attributes
+        if (form.name) return form.name;
+        if (form.id) return form.id;
+        if (form.dataset.formName) return form.dataset.formName;
+
+        // Try to determine from action URL
+        const action = form.getAttribute('action') || '';
+        if (action.includes('/contact')) return 'Contact Form';
+        if (action.includes('/newsletter')) return 'Newsletter Signup';
+        if (action.includes('/callback')) return 'Callback Request';
+        if (action.includes('/quote') || action.includes('/inquiry')) return 'Quote Request';
+
+        // Try to determine from CSS classes
+        const classList = form.className;
+        if (classList.includes('contact-form')) return 'Contact Form';
+        if (classList.includes('newsletter-form')) return 'Newsletter Signup';
+        if (classList.includes('callback-form')) return 'Callback Request';
+        if (classList.includes('quote-form') || classList.includes('inquiry-form')) return 'Quote Request';
+
+        // Fallback
+        return 'Unknown Form';
+    }
+
+    /**
+     * Check if form is a lead generation form
+     */
+    function isLeadForm(form) {
+        if (!(form instanceof HTMLFormElement)) return false;
+
+        const action = form.getAttribute('action') || '';
+        const classList = form.className;
+        const formId = form.id || '';
+
+        // Check for common lead form patterns
+        const leadPatterns = [
+            '/contact',
+            '/newsletter',
+            '/callback',
+            '/quote',
+            '/inquiry',
+            '/request',
+            'contact-form',
+            'newsletter-form',
+            'callback-form',
+            'quote-form',
+            'inquiry-form',
+            'lead-form',
+            'form/contact',
+            'newsletter/subscribe'
+        ];
+
+        // Check action, class, or ID for lead patterns
+        const hasLeadPattern = leadPatterns.some(pattern =>
+            action.includes(pattern) ||
+            classList.includes(pattern) ||
+            formId.includes(pattern)
+        );
+
+        // Exclude common non-lead forms
+        const excludePatterns = [
+            'search',
+            'login',
+            'register',
+            'cart',
+            'checkout',
+            'filter',
+            'sort'
+        ];
+
+        const isExcluded = excludePatterns.some(pattern =>
+            action.includes(pattern) ||
+            classList.includes(pattern) ||
+            formId.includes(pattern)
+        );
+
+        return hasLeadPattern && !isExcluded;
+    }
+
+    /**
+     * Register form submit listener for lead forms
+     */
+    function registerLeadFormListener() {
+        if (window.__wscDebugMode) console.log('🔧 Registering lead form listener');
+
+        document.addEventListener('submit', function(event) {
+            const form = event.target;
+            if (!isLeadForm(form)) {
+                if (window.__wscDebugMode) console.log('🔧 Form submitted but not a lead form:', form);
+                return;
+            }
+
+            if (window.__wscDebugMode) console.log('🔧 Lead form submitted!', form);
+
+            const formName = getFormName(form);
+
+            // Check if we already triggered this form (prevent duplicates in same session)
+            const formKey = `wsc_lead_${formName.replace(/\s+/g, '_').toLowerCase()}`;
+            const alreadyFired = sessionStorage.getItem(formKey);
+
+            if (alreadyFired === 'true') {
+                if (window.__wscDebugMode) console.log('🔧 Lead event already fired for this form in this session');
+                return;
+            }
+
+            if (window.__wscDebugMode) console.log('🔧 Pushing generate_lead event for:', formName);
+
+            // Push the event
+            pushLeadEvent(formName);
+
+            // Mark as fired in session
+            sessionStorage.setItem(formKey, 'true');
+
+            if (window.__wscDebugMode) console.log('✅ generate_lead event pushed successfully!');
+        }, true);
+    }
+
+    /**
+     * Register newsletter subscription listener (alternative detection)
+     */
+    function registerNewsletterListener() {
+        if (window.__wscDebugMode) console.log('🔧 Registering newsletter subscription listener');
+
+        document.addEventListener('click', function(event) {
+            const target = event.target instanceof Element ? event.target : null;
+            if (!target) return;
+
+            // Find newsletter submit button
+            const newsletterButton = target.closest(
+                '.newsletter-submit, [data-newsletter-submit], .btn-newsletter, button[type="submit"][name*="newsletter"]'
+            );
+
+            if (!newsletterButton) return;
+
+            // Find parent form
+            const form = newsletterButton.closest('form');
+            if (!form) return;
+
+            if (window.__wscDebugMode) console.log('🔧 Newsletter subscription button clicked!', newsletterButton);
+
+            // Check if we already triggered newsletter (prevent duplicates in same session)
+            const alreadyFired = sessionStorage.getItem('wsc_lead_newsletter_signup');
+
+            if (alreadyFired === 'true') {
+                if (window.__wscDebugMode) console.log('🔧 Newsletter lead event already fired in this session');
+                return;
+            }
+
+            if (window.__wscDebugMode) console.log('🔧 Pushing generate_lead event for Newsletter Signup');
+
+            // Push the event
+            pushLeadEvent('Newsletter Signup');
+
+            // Mark as fired in session
+            sessionStorage.setItem('wsc_lead_newsletter_signup', 'true');
+
+            if (window.__wscDebugMode) console.log('✅ generate_lead event (newsletter) pushed successfully!');
+        }, true);
+    }
+
+    /**
+     * Detect successful lead submission via success messages (alternative detection)
+     */
+    function detectLeadSuccess() {
+        // Check for success message after page load
+        const successMessage = document.querySelector(
+            '.alert-success[data-form-success], .form-success-message, .lead-success, [data-lead-success]'
+        );
+
+        if (!successMessage) return;
+
+        // Try to get form name from success message
+        const formName = successMessage.dataset.formName ||
+                        successMessage.dataset.leadType ||
+                        'Contact Form';
+
+        // Check if we already triggered this
+        const formKey = `wsc_lead_${formName.replace(/\s+/g, '_').toLowerCase()}`;
+        const alreadyFired = sessionStorage.getItem(formKey);
+
+        if (alreadyFired === 'true') {
+            if (window.__wscDebugMode) console.log('🔧 Lead success detected but event already fired');
+            return;
+        }
+
+        if (window.__wscDebugMode) console.log('🔧 Lead success message detected! Form:', formName);
+
+        // Push the event
+        pushLeadEvent(formName);
+
+        // Mark as fired in session
+        sessionStorage.setItem(formKey, 'true');
+
+        if (window.__wscDebugMode) console.log('✅ generate_lead event pushed via success detection!');
+    }
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        if (window.__wscDebugMode) console.log('🔧 DOM is still loading, waiting for DOMContentLoaded...');
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.__wscDebugMode) console.log('🔧 DOMContentLoaded fired, initializing lead tracking...');
+            registerLeadFormListener();
+            registerNewsletterListener();
+            detectLeadSuccess();
+            if (window.__wscDebugMode) console.log('✅ WSC Generate Lead tracking initialized!');
+        });
+    } else {
+        if (window.__wscDebugMode) console.log('🔧 DOM already loaded, initializing lead tracking immediately...');
+        registerLeadFormListener();
+        registerNewsletterListener();
+        detectLeadSuccess();
+        if (window.__wscDebugMode) console.log('✅ WSC Generate Lead tracking initialized!');
+    }
+})();
+</script>

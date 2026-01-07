@@ -1,0 +1,213 @@
+{# Add to Compare Event Tracking #}
+<script>
+(function() {
+    'use strict';
+
+    if (window.__wscDebugMode) console.log('🔧 WSC Add-to-Compare Tracking: Loading...');
+
+    // Check if already initialized
+    if (window.__wscCompareTrackerInitialized) {
+        if (window.__wscDebugMode) console.log('🔧 WSC Add-to-Compare Tracking: Already initialized, skipping');
+        return;
+    }
+    window.__wscCompareTrackerInitialized = true;
+
+    const dataLayer = window.dataLayer || [];
+    const mtmLayer = window._mtm || [];
+
+    // Store last clicked product for AJAX fallback
+    let lastClickedProduct = null;
+
+    /**
+     * Get product data from data-product-info attribute
+     */
+    function getProductDataFromElement(element) {
+        if (window.__wscDebugMode) console.log('🔧 Getting product data from element:', element);
+
+        const container = element.closest('[data-product-info], .product-box, .product-detail');
+        if (window.__wscDebugMode) console.log('🔧 Found container:', container);
+
+        let dataEl = null;
+
+        // Try to find data-product-info in the container or its children
+        if (container) {
+            dataEl = container.querySelector('[data-product-info]') || (container.hasAttribute('data-product-info') ? container : null);
+            if (window.__wscDebugMode) console.log('🔧 Found data element in container:', dataEl);
+        }
+
+        // Fallback: Search globally for [data-product-info]
+        if (!dataEl) {
+            if (window.__wscDebugMode) console.log('🔧 No data element in container, searching globally');
+            dataEl = document.querySelector('[data-product-info]');
+            if (window.__wscDebugMode) console.log('🔧 Found global data element:', dataEl);
+        }
+
+        if (!dataEl) {
+            if (window.__wscDebugMode) console.warn('🔧 No data-product-info element found');
+            return null;
+        }
+
+        const dataJson = dataEl.getAttribute('data-product-info');
+        if (window.__wscDebugMode) console.log('🔧 data-product-info JSON:', dataJson);
+
+        if (!dataJson) {
+            if (window.__wscDebugMode) console.warn('🔧 data-product-info attribute is empty');
+            return null;
+        }
+
+        try {
+            const parsed = JSON.parse(dataJson);
+            if (window.__wscDebugMode) console.log('🔧 Parsed product data:', parsed);
+            return parsed;
+        } catch (e) {
+            if (window.__wscDebugMode) console.error('🔧 WSC DataLayer: Failed to parse product data', e);
+            return null;
+        }
+    }
+
+    /**
+     * Push event to dataLayer and mtmLayer
+     */
+    function pushEvent(eventName, eventData) {
+        const fullEventData = {
+            event: eventName,
+            ...eventData
+        };
+
+        // Push to Google Analytics / GTM
+        if (Array.isArray(dataLayer)) {
+            dataLayer.push(fullEventData);
+        }
+
+        // Push to Matomo
+        if (Array.isArray(mtmLayer)) {
+            mtmLayer.push(fullEventData);
+        }
+
+        if (window.__wscDebugMode) {
+            console.log(`⚖️ WSC ${eventName} Event pushed:`, fullEventData);
+        }
+    }
+
+    /**
+     * Register click listener for compare buttons
+     */
+    function registerCompareListener() {
+        if (window.__wscDebugMode) console.log('🔧 Registering compare button listener');
+
+        document.addEventListener('click', function(event) {
+            const target = event.target instanceof Element ? event.target : null;
+            if (!target) return;
+
+            // Find compare button
+            const compareButton = target.closest(
+                '.product-compare-action, [data-compare-add], [data-product-compare-add], .compare-add, .btn-compare'
+            );
+
+            if (!compareButton) return;
+
+            if (window.__wscDebugMode) console.log('🔧 Compare button clicked!', compareButton);
+
+            const productData = getProductDataFromElement(compareButton);
+            if (!productData || !productData.item_id) {
+                if (window.__wscDebugMode) console.warn('🔧 No valid product data found for compare');
+                return;
+            }
+
+            // Store for potential AJAX fallback
+            lastClickedProduct = productData;
+
+            if (window.__wscDebugMode) console.log('🔧 Pushing add_to_compare event with data:', productData);
+
+            // Push add_to_compare event
+            pushEvent('add_to_compare', {
+                items: [productData]
+            });
+
+            if (window.__wscDebugMode) console.log('✅ add_to_compare event pushed successfully!');
+        }, true);
+    }
+
+    /**
+     * Install AJAX interceptor for compare requests (fallback)
+     */
+    function installAjaxInterceptor() {
+        // Intercept fetch()
+        const originalFetch = window.fetch;
+        if (typeof originalFetch === 'function') {
+            window.fetch = async function(...args) {
+                const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || '';
+
+                const response = await originalFetch(...args);
+
+                // Detect compare add requests
+                if ((url.includes('/compare/add') || url.includes('/product-compare/add')) && response && response.ok) {
+                    if (window.__wscDebugMode) console.log('🔧 AJAX compare request detected (fetch)! URL:', url);
+
+                    if (lastClickedProduct) {
+                        if (window.__wscDebugMode) console.log('🔧 Pushing add_to_compare event with stored data');
+
+                        pushEvent('add_to_compare', {
+                            items: [lastClickedProduct]
+                        });
+
+                        if (window.__wscDebugMode) console.log('✅ add_to_compare event pushed via AJAX interceptor!');
+                    } else {
+                        if (window.__wscDebugMode) console.warn('🔧 No last clicked product stored for AJAX request');
+                    }
+                }
+
+                return response;
+            };
+        }
+
+        // Intercept XMLHttpRequest
+        const originalOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+            this.__wscUrl = url;
+            return originalOpen.call(this, method, url, ...rest);
+        };
+
+        const originalSend = XMLHttpRequest.prototype.send;
+        XMLHttpRequest.prototype.send = function(body) {
+            this.addEventListener('load', function() {
+                const url = this.__wscUrl || '';
+
+                // Detect compare add requests
+                if ((url.includes('/compare/add') || url.includes('/product-compare/add')) && this.status >= 200 && this.status < 300) {
+                    if (window.__wscDebugMode) console.log('🔧 AJAX compare request detected (XMLHttpRequest)! URL:', url);
+
+                    if (lastClickedProduct) {
+                        if (window.__wscDebugMode) console.log('🔧 Pushing add_to_compare event with stored data');
+
+                        pushEvent('add_to_compare', {
+                            items: [lastClickedProduct]
+                        });
+
+                        if (window.__wscDebugMode) console.log('✅ add_to_compare event pushed via AJAX interceptor!');
+                    } else {
+                        if (window.__wscDebugMode) console.warn('🔧 No last clicked product stored for AJAX request');
+                    }
+                }
+            });
+            return originalSend.call(this, body);
+        };
+    }
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        if (window.__wscDebugMode) console.log('🔧 DOM is still loading, waiting for DOMContentLoaded...');
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.__wscDebugMode) console.log('🔧 DOMContentLoaded fired, initializing compare listener...');
+            registerCompareListener();
+            installAjaxInterceptor();
+            if (window.__wscDebugMode) console.log('✅ WSC Add-to-Compare listener registered successfully!');
+        });
+    } else {
+        if (window.__wscDebugMode) console.log('🔧 DOM already loaded, initializing compare listener immediately...');
+        registerCompareListener();
+        installAjaxInterceptor();
+        if (window.__wscDebugMode) console.log('✅ WSC Add-to-Compare listener registered successfully!');
+    }
+})();
+</script>
