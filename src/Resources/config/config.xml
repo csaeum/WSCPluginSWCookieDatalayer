@@ -711,6 +711,17 @@
             <defaultValue>true</defaultValue>
         </input-field>
 
+        <input-field type="bool">
+            <name>wscTagManagerJitsuConsentMode</name>
+            <label lang="de-DE">Cookie Consent Modus aktivieren (GDPR)</label>
+            <label lang="en-GB">Activate Cookie Consent Mode (GDPR)</label>
+            <label lang="fr-FR">Activer le mode de consentement aux cookies (RGPD)</label>
+            <helpText lang="de-DE">Wenn aktiviert, werden Events nur an Jitsu gesendet, wenn Analytics-Consent gegeben wurde. Consent-Status wird immer als Property mitgesendet. In Jitsu können Sie dann Destinations (GA4, Matomo) basierend auf consent_analytics steuern.</helpText>
+            <helpText lang="en-GB">When enabled, events are only sent to Jitsu if analytics consent is given. Consent status is always sent as property. In Jitsu you can then control destinations (GA4, Matomo) based on consent_analytics.</helpText>
+            <helpText lang="fr-FR">Lorsqu'activé, les événements ne sont envoyés à Jitsu que si le consentement aux analyses est donné. Le statut de consentement est toujours envoyé en tant que propriété. Dans Jitsu, vous pouvez ensuite contrôler les destinations (GA4, Matomo) en fonction de consent_analytics.</helpText>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
     </card>
 
     <card>

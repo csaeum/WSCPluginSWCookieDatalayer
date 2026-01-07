@@ -10,6 +10,9 @@
         <!-- DataLayerBuilder Service -->
         <service id="WSC\SWCookieDataLayer\Service\DataLayerBuilder"/>
 
+        <!-- ConsentService -->
+        <service id="WSC\SWCookieDataLayer\Service\ConsentService"/>
+
         <!-- JitsuClient Service -->
         <service id="WSC\SWCookieDataLayer\Service\JitsuClient"/>
 

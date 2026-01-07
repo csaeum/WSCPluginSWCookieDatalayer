@@ -7,6 +7,7 @@ use Shopware\Core\Checkout\Customer\CustomerEntity;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use WSC\SWCookieDataLayer\Service\ConsentService;
 
 class JitsuClient
 {
@@ -17,7 +18,8 @@ class JitsuClient
         private readonly HttpClientInterface $httpClient,
         private readonly SystemConfigService $systemConfigService,
         private readonly LoggerInterface $logger,
-        private readonly RequestStack $requestStack
+        private readonly RequestStack $requestStack,
+        private readonly ConsentService $consentService
     ) {
     }
 
@@ -42,6 +44,19 @@ class JitsuClient
             return;
         }
 
+        // Check if consent-based tracking is enabled
+        if ($this->isConsentModeEnabled($salesChannelId)) {
+            // Only send events if analytics consent is given
+            if (!$this->consentService->hasAnalyticsConsent()) {
+                if ($this->isDebugMode($salesChannelId)) {
+                    $this->logger->info('[Jitsu] Event blocked - no analytics consent', [
+                        'event' => $eventName,
+                    ]);
+                }
+                return;
+            }
+        }
+
         // Get configuration
         $jitsuUrl = $this->getJitsuUrl($salesChannelId);
         $writeKey = $this->getWriteKey($salesChannelId);
@@ -52,7 +67,7 @@ class JitsuClient
         }
 
         // Build event payload
-        $payload = $this->buildPayload($eventName, $properties, $customer, $sessionId);
+        $payload = $this->buildPayload($eventName, $properties, $customer, $sessionId, $salesChannelId);
 
         // Send event asynchronously
         $this->sendEvent($jitsuUrl, $writeKey, $payload, $salesChannelId);
@@ -65,14 +80,19 @@ class JitsuClient
         string $eventName,
         array $properties,
         ?CustomerEntity $customer,
-        string $sessionId
+        string $sessionId,
+        ?string $salesChannelId = null
     ): array {
         try {
             $request = $this->requestStack->getCurrentRequest();
 
+            // Get consent data and merge with properties
+            $consentData = $this->consentService->getConsentDataForJitsu();
+            $mergedProperties = array_merge($properties, $consentData);
+
             $payload = [
                 'event' => $eventName,
-                'properties' => $properties,
+                'properties' => $mergedProperties,
                 'context' => [
                     'ip' => $request?->getClientIp() ?? 'unknown',
                     'userAgent' => $request?->headers->get('User-Agent') ?? 'unknown',
@@ -80,9 +100,19 @@ class JitsuClient
                         'url' => $request?->getUri() ?? '',
                         'referrer' => $request?->headers->get('referer') ?? '',
                     ],
+                    // Add consent to context for easier filtering in Jitsu
+                    'consent' => $consentData,
                 ],
                 'timestamp' => (new \DateTime())->format('c'),
             ];
+
+            // Log consent status in debug mode
+            if ($this->isDebugMode($salesChannelId)) {
+                $this->logger->info('[Jitsu] Consent status', [
+                    'event' => $eventName,
+                    'consent' => $consentData,
+                ]);
+            }
 
             // ALWAYS set anonymousId (required for GA4 client_id)
             $payload['anonymousId'] = $sessionId;
@@ -252,6 +282,17 @@ class JitsuClient
 
         // Default to true (secure) if not set
         return $verifySsl !== false;
+    }
+
+    /**
+     * Check if consent mode is enabled
+     */
+    private function isConsentModeEnabled(?string $salesChannelId): bool
+    {
+        return (bool) $this->systemConfigService->get(
+            'WscSwCookieDataLayer.config.wscTagManagerJitsuConsentMode',
+            $salesChannelId
+        );
     }
 
     /**
