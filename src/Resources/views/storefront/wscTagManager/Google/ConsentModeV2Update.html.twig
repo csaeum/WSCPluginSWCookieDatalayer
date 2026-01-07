@@ -1,0 +1,126 @@
+{# Google Consent Mode v2 - Immediate Update from Cookie (Issue #11) #}
+{# WICHTIG: Läuft SYNCHRON und SOFORT - VOR allen DataLayer Events! #}
+
+{% if config('WscSwCookieDataLayer.config.wscTagManagerGoogleConsentMode') %}
+
+<script>
+    // Google Consent Mode v2 - Immediate Update from Cookie
+    // Reads cookie SYNCHRONOUSLY and updates consent BEFORE any events fire
+    (function() {
+        'use strict';
+
+        /**
+         * Read cookie by name
+         */
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
+        /**
+         * Parse Orestbida CookieConsent cookie
+         */
+        function parseConsentCookie() {
+            const cookieValue = getCookie('wsc_cookie_consent');
+
+            if (!cookieValue) {
+                console.log('[Consent Mode v2] No consent cookie found - staying in default (denied) state');
+                return null;
+            }
+
+            try {
+                const consentData = JSON.parse(decodeURIComponent(cookieValue));
+                const categories = consentData.categories || [];
+
+                // Orestbida v3 format: ["necessary", "analytics", "marketing"]
+                let consent = {
+                    analytics: false,
+                    marketing: false,
+                    personalization: false
+                };
+
+                if (Array.isArray(categories)) {
+                    // Array format
+                    consent.analytics = categories.includes('analytics');
+                    consent.marketing = categories.includes('marketing');
+                    consent.personalization = categories.includes('personalization');
+                } else {
+                    // Object format: {analytics: true, marketing: true}
+                    consent.analytics = !!categories.analytics;
+                    consent.marketing = !!categories.marketing;
+                    consent.personalization = !!categories.personalization;
+                }
+
+                return consent;
+
+            } catch (e) {
+                console.error('[Consent Mode v2] Failed to parse consent cookie:', e);
+                return null;
+            }
+        }
+
+        /**
+         * Update Google Consent Mode v2
+         */
+        function updateGoogleConsent(consent) {
+            if (typeof gtag !== 'function') {
+                console.warn('[Consent Mode v2] gtag function not available');
+                return;
+            }
+
+            gtag('consent', 'update', {
+                'analytics_storage': consent.analytics ? 'granted' : 'denied',
+                'ad_storage': consent.marketing ? 'granted' : 'denied',
+                'ad_user_data': consent.marketing ? 'granted' : 'denied',
+                'ad_personalization': consent.marketing ? 'granted' : 'denied'
+            });
+
+            console.log('[Consent Mode v2] Updated from cookie:', {
+                analytics_storage: consent.analytics ? 'granted' : 'denied',
+                ad_storage: consent.marketing ? 'granted' : 'denied',
+                ad_user_data: consent.marketing ? 'granted' : 'denied',
+                ad_personalization: consent.marketing ? 'granted' : 'denied'
+            });
+        }
+
+        /**
+         * Update Matomo Consent
+         */
+        function updateMatomoConsent(consent) {
+            if (typeof _paq === 'undefined') {
+                // Matomo not loaded yet, will be handled by Matomo init
+                return;
+            }
+
+            if (consent.analytics) {
+                _paq.push(['setConsentGiven']);
+                _paq.push(['setCookieConsentGiven']);
+                console.log('[Matomo] Consent granted from cookie');
+            } else {
+                _paq.push(['forgetConsentGiven']);
+                console.log('[Matomo] Consent denied from cookie');
+            }
+        }
+
+        // Execute IMMEDIATELY (synchronous)
+        const consent = parseConsentCookie();
+
+        if (consent) {
+            // Update Google Consent Mode v2
+            {% if config('WscSwCookieDataLayer.config.wscTagManagerGoogle') %}
+            updateGoogleConsent(consent);
+            {% endif %}
+
+            // Update Matomo Consent
+            {% if config('WscSwCookieDataLayer.config.wscTagManagerMatomo') %}
+            updateMatomoConsent(consent);
+            {% endif %}
+        }
+
+    })();
+</script>
+
+{% endif %}
+{# Google Consent Mode v2 - Immediate Update END #}

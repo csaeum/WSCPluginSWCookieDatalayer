@@ -2,13 +2,20 @@
 
 {% block layout_head_meta_tags %}
 
-    {# Google Consent Mode v2 - MUSS GANZ AM ANFANG GELADEN WERDEN (Issue #11) #}
-    {# WICHTIG: VOR Cookie Consent und VOR GA4/GTM! #}
+    {# Google Consent Mode v2 - Step 1: Default State (Issue #11) #}
+    {# WICHTIG: GANZ AM ANFANG - VOR ALLEM! #}
     {% if config('WscSwCookieDataLayer.config.wscTagManagerGoogle') %}
         {% sw_include '@WscSwCookieDataLayer/storefront/wscTagManager/Google/ConsentModeV2.html.twig' %}
     {% endif %}
 
+    {# Google Consent Mode v2 - Step 2: Immediate Update from Cookie (Issue #11) #}
+    {# WICHTIG: Läuft SYNCHRON - VOR allen DataLayer Events! #}
+    {% if config('WscSwCookieDataLayer.config.wscTagManagerGoogle') or config('WscSwCookieDataLayer.config.wscTagManagerMatomo') %}
+        {% sw_include '@WscSwCookieDataLayer/storefront/wscTagManager/Google/ConsentModeV2Update.html.twig' %}
+    {% endif %}
+
     {# Einbindung von Cookie Consent START #}
+    {# Lädt erst später (window.load) - Events haben bereits korrekten Consent! #}
     {% if config('WscSwCookieDataLayer.config.wscTagManagerCookieConsent') %}
         {% sw_include '@Storefront/storefront/wscTagManager/CookieConsent/CookieConsent.html.twig' %}
     {% endif %}
