@@ -84,7 +84,10 @@ class JitsuClient
                 'timestamp' => (new \DateTime())->format('c'),
             ];
 
-            // Add userId if customer is logged in
+            // ALWAYS set anonymousId (required for GA4 client_id)
+            $payload['anonymousId'] = $sessionId;
+
+            // Add userId and traits if customer is logged in
             if ($customer !== null) {
                 try {
                     $payload['userId'] = $customer->getId();
@@ -95,15 +98,11 @@ class JitsuClient
                         'customerNumber' => $customer->getCustomerNumber() ?? '',
                     ];
                 } catch (\Exception $e) {
-                    // Fallback to anonymousId if customer data fails
+                    // Log error but keep anonymousId
                     $this->logError('Failed to extract customer data for Jitsu payload', [
                         'error' => $e->getMessage(),
                     ]);
-                    $payload['anonymousId'] = $sessionId;
                 }
-            } else {
-                // Use session ID as anonymousId for guests
-                $payload['anonymousId'] = $sessionId;
             }
 
             return $payload;
