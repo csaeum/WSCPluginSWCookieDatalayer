@@ -49,9 +49,9 @@ class ConsentService
             $cookieValue = $request->cookies->get(self::COOKIE_NAME);
             $consentData = json_decode($cookieValue, true);
 
-            if (!is_array($consentData) || !isset($consentData['categories'])) {
-                $this->logger->warning('[Consent Service] Invalid cookie consent data format', [
-                    'cookieValue' => $cookieValue,
+            if (!is_array($consentData)) {
+                $this->logger->warning('[Consent Service] Cookie is not valid JSON', [
+                    'cookieValue' => substr($cookieValue, 0, 100) . '...',
                 ]);
 
                 return [
@@ -62,8 +62,22 @@ class ConsentService
                 ];
             }
 
-            $categories = $consentData['categories'];
+            // Orestbida CookieConsent stores categories as array: ["necessary", "analytics"]
+            // OR as object: {"necessary": true, "analytics": true}
+            $categories = $consentData['categories'] ?? [];
 
+            // Check if categories is an array of strings (Orestbida v3 format)
+            if (is_array($categories) && isset($categories[0]) && is_string($categories[0])) {
+                // Array format: ["necessary", "analytics", "marketing"]
+                return [
+                    'necessary' => true, // Always true
+                    'analytics' => in_array('analytics', $categories, true),
+                    'marketing' => in_array('marketing', $categories, true),
+                    'personalization' => in_array('personalization', $categories, true),
+                ];
+            }
+
+            // Object format: {"necessary": true, "analytics": true}
             return [
                 'necessary' => true, // Always true
                 'analytics' => !empty($categories['analytics']),
@@ -74,6 +88,7 @@ class ConsentService
         } catch (\Exception $e) {
             $this->logger->error('[Consent Service] Failed to parse cookie consent', [
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             // Return conservative defaults on error

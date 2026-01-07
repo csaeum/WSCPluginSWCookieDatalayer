@@ -86,13 +86,12 @@ class JitsuClient
         try {
             $request = $this->requestStack->getCurrentRequest();
 
-            // Get consent data and merge with properties
+            // Get consent data (only add to context, not properties)
             $consentData = $this->consentService->getConsentDataForJitsu();
-            $mergedProperties = array_merge($properties, $consentData);
 
             $payload = [
                 'event' => $eventName,
-                'properties' => $mergedProperties,
+                'properties' => $properties,
                 'context' => [
                     'ip' => $request?->getClientIp() ?? 'unknown',
                     'userAgent' => $request?->headers->get('User-Agent') ?? 'unknown',
@@ -100,7 +99,7 @@ class JitsuClient
                         'url' => $request?->getUri() ?? '',
                         'referrer' => $request?->headers->get('referer') ?? '',
                     ],
-                    // Add consent to context for easier filtering in Jitsu
+                    // Add consent to context for filtering in Jitsu destinations
                     'consent' => $consentData,
                 ],
                 'timestamp' => (new \DateTime())->format('c'),
