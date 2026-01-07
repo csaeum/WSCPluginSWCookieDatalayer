@@ -791,6 +791,39 @@ class DataLayerBuilder
                 }
             }
 
+            // Apply SHA-256 hashing for GDPR compliance (if enabled)
+            $shouldHash = $this->shouldHashUserData($context->getSalesChannelId());
+
+            if ($shouldHash) {
+                // Hash PII (Personally Identifiable Information) fields
+                // Required for Google Enhanced Conversions and GDPR compliance
+                $userData['user_email'] = $this->hashUserData($userData['user_email'] ?? '');
+
+                if (isset($userData['user_phone'])) {
+                    $userData['user_phone'] = $this->hashUserData($userData['user_phone']);
+                }
+                if (isset($userData['user_first_name'])) {
+                    $userData['user_first_name'] = $this->hashUserData($userData['user_first_name']);
+                }
+                if (isset($userData['user_last_name'])) {
+                    $userData['user_last_name'] = $this->hashUserData($userData['user_last_name']);
+                }
+                if (isset($userData['user_street'])) {
+                    $userData['user_street'] = $this->hashUserData($userData['user_street']);
+                }
+                if (isset($userData['user_zipcode'])) {
+                    $userData['user_zipcode'] = $this->hashUserData($userData['user_zipcode']);
+                }
+
+                // Note: The following fields are NOT hashed:
+                // - user_country, user_city: Not PII (aggregated data)
+                // - user_customer_number: Internal ID, not PII
+                // - user_birthday: Not considered PII by Google
+                // - user_company: Company name, not PII
+                // - user_country_iso: Not PII
+                // - user_customer_group: Not PII
+            }
+
             return $userData;
 
         } catch (\Exception $e) {
@@ -805,5 +838,44 @@ class DataLayerBuilder
                 'user_city' => '',
             ];
         }
+    }
+
+    /**
+     * Hash user data with SHA-256 for GDPR compliance
+     * Required for Google Enhanced Conversions and GDPR regulations
+     *
+     * @param string|null $value The value to hash
+     * @return string The hashed value (lowercase SHA-256) or empty string if value is null/empty
+     */
+    private function hashUserData(?string $value): string
+    {
+        if (empty($value)) {
+            return '';
+        }
+
+        // Google Enhanced Conversions requires:
+        // 1. Remove whitespace and convert to lowercase
+        // 2. Apply SHA-256 hash
+        // 3. Return lowercase hex string
+        $normalized = strtolower(trim($value));
+
+        return hash('sha256', $normalized);
+    }
+
+    /**
+     * Check if user data hashing is enabled
+     *
+     * @param string $salesChannelId
+     * @return bool
+     */
+    private function shouldHashUserData(string $salesChannelId): bool
+    {
+        $config = $this->systemConfigService->get(
+            'WscSwCookieDataLayer.config.wscTagManagerHashUserData',
+            $salesChannelId
+        );
+
+        // Default to true (enabled) for GDPR compliance
+        return $config ?? true;
     }
 }

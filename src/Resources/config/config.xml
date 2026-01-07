@@ -420,6 +420,17 @@
             <defaultValue>false</defaultValue>
         </input-field>
 
+        <input-field type="bool">
+            <name>wscTagManagerHashUserData</name>
+            <label lang="de-DE">🔐 User-Daten mit SHA-256 hashen (DSGVO)</label>
+            <label lang="en-GB">🔐 Hash User Data with SHA-256 (GDPR)</label>
+            <label lang="fr-FR">🔐 Hacher les données utilisateur avec SHA-256 (RGPD)</label>
+            <helpText lang="de-DE">⚠️ DSGVO-PFLICHT! Personenbezogene Daten (E-Mail, Telefon, Name, Adresse) werden mit SHA-256 gehasht, bevor sie an Google/Matomo gesendet werden. Google Enhanced Conversions erfordert gehashte Daten. In Production IMMER aktivieren! Nur für Testing/Development deaktivieren, um Klartextwerte im Debugger zu sehen.</helpText>
+            <helpText lang="en-GB">⚠️ GDPR REQUIRED! Personal data (email, phone, name, address) will be hashed with SHA-256 before sending to Google/Matomo. Google Enhanced Conversions requires hashed data. ALWAYS enable in production! Only disable for testing/development to see plaintext values in debugger.</helpText>
+            <helpText lang="fr-FR">⚠️ RGPD OBLIGATOIRE! Les données personnelles (email, téléphone, nom, adresse) seront hachées avec SHA-256 avant l'envoi à Google/Matomo. Les conversions améliorées de Google nécessitent des données hachées. TOUJOURS activer en production! Désactiver uniquement pour test/développement pour voir les valeurs en clair dans le débogueur.</helpText>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
     </card>
 
     <card>
