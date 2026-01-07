@@ -537,6 +537,81 @@
             <defaultValue>false</defaultValue>
         </input-field>
 
+        <input-field type="bool">
+            <name>wscTagManagerGoogleConsentMode</name>
+            <label lang="de-DE">Google Consent Mode v2 aktivieren (GDPR)</label>
+            <label lang="en-GB">Activate Google Consent Mode v2 (GDPR)</label>
+            <label lang="fr-FR">Activer le mode de consentement Google v2 (RGPD)</label>
+            <helpText lang="de-DE">Aktiviert Google Consent Mode v2 für GDPR-konforme Tracking-Signale an Google Analytics 4 und Google Ads. Funktioniert zusammen mit Cookie Consent Banner. Empfohlen für EU-Websites!</helpText>
+            <helpText lang="en-GB">Activates Google Consent Mode v2 for GDPR-compliant tracking signals to Google Analytics 4 and Google Ads. Works with Cookie Consent Banner. Recommended for EU websites!</helpText>
+            <helpText lang="fr-FR">Active le mode de consentement Google v2 pour les signaux de suivi conformes au RGPD vers Google Analytics 4 et Google Ads. Fonctionne avec la bannière de consentement aux cookies. Recommandé pour les sites web de l'UE!</helpText>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="int">
+            <name>wscTagManagerGoogleConsentWaitTime</name>
+            <label lang="de-DE">Consent Mode - Wartezeit (ms)</label>
+            <label lang="en-GB">Consent Mode - Wait Time (ms)</label>
+            <label lang="fr-FR">Mode de consentement - Temps d'attente (ms)</label>
+            <helpText lang="de-DE">Zeit in Millisekunden, die Google wartet, bevor Tracking ohne Consent startet. Standard: 500ms. Erhöhen Sie den Wert, wenn der Cookie Banner langsam lädt.</helpText>
+            <helpText lang="en-GB">Time in milliseconds Google waits before starting tracking without consent. Default: 500ms. Increase if cookie banner loads slowly.</helpText>
+            <helpText lang="fr-FR">Temps en millisecondes que Google attend avant de démarrer le suivi sans consentement. Par défaut : 500ms. Augmentez si la bannière de cookies se charge lentement.</helpText>
+            <defaultValue>500</defaultValue>
+        </input-field>
+
+        <input-field type="single-select">
+            <name>wscTagManagerGoogleConsentRegion</name>
+            <label lang="de-DE">Consent Mode - Region</label>
+            <label lang="en-GB">Consent Mode - Region</label>
+            <label lang="fr-FR">Mode de consentement - Région</label>
+            <options>
+                <option>
+                    <id>disabled</id>
+                    <name lang="de-DE">Deaktiviert (Weltweit)</name>
+                    <name lang="en-GB">Disabled (Worldwide)</name>
+                    <name lang="fr-FR">Désactivé (Mondial)</name>
+                </option>
+                <option>
+                    <id>EEA</id>
+                    <name lang="de-DE">EEA (Europäischer Wirtschaftsraum)</name>
+                    <name lang="en-GB">EEA (European Economic Area)</name>
+                    <name lang="fr-FR">EEE (Espace économique européen)</name>
+                </option>
+                <option>
+                    <id>EU</id>
+                    <name lang="de-DE">EU (Europäische Union)</name>
+                    <name lang="en-GB">EU (European Union)</name>
+                    <name lang="fr-FR">UE (Union européenne)</name>
+                </option>
+            </options>
+            <defaultValue>disabled</defaultValue>
+            <helpText lang="de-DE">Beschränkt Consent Mode auf bestimmte Regionen. "EEA" oder "EU" für europäische Nutzer, "Deaktiviert" für alle Nutzer weltweit.</helpText>
+            <helpText lang="en-GB">Restricts Consent Mode to specific regions. "EEA" or "EU" for European users, "Disabled" for all users worldwide.</helpText>
+            <helpText lang="fr-FR">Restreint le mode de consentement à certaines régions. "EEE" ou "UE" pour les utilisateurs européens, "Désactivé" pour tous les utilisateurs dans le monde.</helpText>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscTagManagerGoogleConsentUrlPassthrough</name>
+            <label lang="de-DE">Consent Mode - URL Passthrough</label>
+            <label lang="en-GB">Consent Mode - URL Passthrough</label>
+            <label lang="fr-FR">Mode de consentement - Transfert d'URL</label>
+            <helpText lang="de-DE">Aktiviert URL-Parameter-Übergabe für Cross-Domain-Tracking auch ohne Consent. Nur aktivieren, wenn Sie Cross-Domain-Tracking benötigen.</helpText>
+            <helpText lang="en-GB">Enables URL parameter passthrough for cross-domain tracking even without consent. Only enable if you need cross-domain tracking.</helpText>
+            <helpText lang="fr-FR">Active le transfert de paramètres d'URL pour le suivi inter-domaines même sans consentement. Activez uniquement si vous avez besoin d'un suivi inter-domaines.</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>wscTagManagerGoogleConsentAdsRedaction</name>
+            <label lang="de-DE">Consent Mode - Ads Data Redaction</label>
+            <label lang="en-GB">Consent Mode - Ads Data Redaction</label>
+            <label lang="fr-FR">Mode de consentement - Suppression des données publicitaires</label>
+            <helpText lang="de-DE">Aktiviert Daten-Anonymisierung für Google Ads bis Consent gegeben wurde. Empfohlen für GDPR-Compliance!</helpText>
+            <helpText lang="en-GB">Enables data redaction for Google Ads until consent is given. Recommended for GDPR compliance!</helpText>
+            <helpText lang="fr-FR">Active la suppression des données pour Google Ads jusqu'à ce que le consentement soit donné. Recommandé pour la conformité RGPD!</helpText>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
     </card>
 
     <card>

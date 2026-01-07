@@ -2,6 +2,12 @@
 
 {% block layout_head_meta_tags %}
 
+    {# Google Consent Mode v2 - MUSS GANZ AM ANFANG GELADEN WERDEN (Issue #11) #}
+    {# WICHTIG: VOR Cookie Consent und VOR GA4/GTM! #}
+    {% if config('WscSwCookieDataLayer.config.wscTagManagerGoogle') %}
+        {% sw_include '@WscSwCookieDataLayer/storefront/wscTagManager/Google/ConsentModeV2.html.twig' %}
+    {% endif %}
+
     {# Einbindung von Cookie Consent START #}
     {% if config('WscSwCookieDataLayer.config.wscTagManagerCookieConsent') %}
         {% sw_include '@Storefront/storefront/wscTagManager/CookieConsent/CookieConsent.html.twig' %}

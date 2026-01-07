@@ -281,6 +281,7 @@
         function pushConsentToDataLayer(cookie) {
             window.dataLayer = window.dataLayer || [];
 
+            // Standard DataLayer event for GTM/custom tracking
             window.dataLayer.push({
                 event: 'cookie_consent_update',
                 cookie_consent: {
@@ -291,6 +292,23 @@
                 },
                 timestamp: new Date().toISOString()
             });
+
+            // Google Consent Mode v2 update (Issue #11)
+            if (typeof gtag === 'function') {
+                gtag('consent', 'update', {
+                    'analytics_storage': CookieConsent.acceptedCategory('analytics') ? 'granted' : 'denied',
+                    'ad_storage': CookieConsent.acceptedCategory('marketing') ? 'granted' : 'denied',
+                    'ad_user_data': CookieConsent.acceptedCategory('marketing') ? 'granted' : 'denied',
+                    'ad_personalization': CookieConsent.acceptedCategory('marketing') ? 'granted' : 'denied'
+                });
+
+                console.log('[Google Consent Mode v2] Updated:', {
+                    analytics_storage: CookieConsent.acceptedCategory('analytics') ? 'granted' : 'denied',
+                    ad_storage: CookieConsent.acceptedCategory('marketing') ? 'granted' : 'denied',
+                    ad_user_data: CookieConsent.acceptedCategory('marketing') ? 'granted' : 'denied',
+                    ad_personalization: CookieConsent.acceptedCategory('marketing') ? 'granted' : 'denied'
+                });
+            }
 
             console.log('WSC Cookie Consent: DataLayer updated', window.dataLayer);
         }

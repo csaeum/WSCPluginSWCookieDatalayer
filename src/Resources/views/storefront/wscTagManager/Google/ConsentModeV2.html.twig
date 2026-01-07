@@ -1,0 +1,46 @@
+{# Google Consent Mode v2 - Default State (Issue #11) #}
+{# WICHTIG: Muss VOR Cookie Consent und VOR GA4/GTM geladen werden! #}
+
+{% if config('WscSwCookieDataLayer.config.wscTagManagerGoogleConsentMode') %}
+
+    {# Get configuration #}
+    {% set waitForUpdate = config('WscSwCookieDataLayer.config.wscTagManagerGoogleConsentWaitTime') ?? 500 %}
+    {% set regionDetection = config('WscSwCookieDataLayer.config.wscTagManagerGoogleConsentRegion') ?? 'disabled' %}
+    {% set urlPassthrough = config('WscSwCookieDataLayer.config.wscTagManagerGoogleConsentUrlPassthrough') ?? false %}
+    {% set adsDataRedaction = config('WscSwCookieDataLayer.config.wscTagManagerGoogleConsentAdsRedaction') ?? true %}
+
+    <script>
+        // Google Consent Mode v2 - Default State
+        // Must be loaded BEFORE gtag.js or GTM
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+
+        // Set default consent state BEFORE any Google scripts load
+        gtag('consent', 'default', {
+            'ad_storage': 'denied',
+            'ad_user_data': 'denied',
+            'ad_personalization': 'denied',
+            'analytics_storage': 'denied',
+            {% if waitForUpdate > 0 %}
+            'wait_for_update': {{ waitForUpdate }},
+            {% endif %}
+            {% if regionDetection != 'disabled' %}
+            'region': ['{{ regionDetection|e('js') }}'],
+            {% endif %}
+        });
+
+        {% if urlPassthrough %}
+        // Enable URL passthrough for cross-domain tracking
+        gtag('set', 'url_passthrough', true);
+        {% endif %}
+
+        {% if adsDataRedaction %}
+        // Enable ads data redaction until consent is given
+        gtag('set', 'ads_data_redaction', true);
+        {% endif %}
+
+        console.log('[Google Consent Mode v2] Default state set to denied');
+    </script>
+
+{% endif %}
+{# Google Consent Mode v2 - Default State END #}
