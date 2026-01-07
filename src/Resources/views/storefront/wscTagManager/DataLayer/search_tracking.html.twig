@@ -3,6 +3,11 @@
 (function() {
     'use strict';
 
+    // Set debug mode from backend config (if not already set)
+    if (typeof window.__wscDebugMode === 'undefined') {
+        window.__wscDebugMode = {{ config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') ? 'true' : 'false' }};
+    }
+
     if (window.__wscDebugMode) console.log('🔧 WSC Search Tracking: Loading...');
 
     // Check if already initialized
@@ -41,10 +46,52 @@
     }
 
     /**
+     * Get search term from URL
+     */
+    function getSearchTermFromURL() {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get('search') || urlParams.get('q') || '';
+    }
+
+    /**
+     * Check if we're on a search results page and fire event
+     */
+    function checkSearchResultsPage() {
+        // Check if URL contains /search or is search results page
+        const isSearchPage = window.location.pathname.includes('/search');
+
+        if (!isSearchPage) {
+            if (window.__wscDebugMode) console.log('🔧 Not a search results page');
+            return;
+        }
+
+        // Get search term from URL
+        const searchTerm = getSearchTermFromURL();
+        if (!searchTerm) {
+            if (window.__wscDebugMode) console.warn('🔧 Search results page but no search term in URL');
+            return;
+        }
+
+        // Check if we already fired this search term (prevent duplicates)
+        const lastSearchTerm = sessionStorage.getItem('wsc_last_search_term');
+        if (lastSearchTerm === searchTerm) {
+            if (window.__wscDebugMode) console.log('🔧 view_search_results already fired for this search term');
+            return;
+        }
+
+        if (window.__wscDebugMode) console.log('🔧 Search results page detected! Term:', searchTerm);
+
+        pushSearchEvent(searchTerm);
+
+        // Store last search term
+        sessionStorage.setItem('wsc_last_search_term', searchTerm);
+    }
+
+    /**
      * Register search form listener
      */
     function registerSearchListener() {
-        if (window.__wscDebugMode) console.log('🔧 Registering search listener');
+        if (window.__wscDebugMode) console.log('🔧 Registering search form listener');
 
         // Listen for search form submissions
         document.addEventListener('submit', function(event) {
@@ -75,6 +122,46 @@
             if (window.__wscDebugMode) console.log('🔧 Search form submitted with term:', searchTerm);
 
             pushSearchEvent(searchTerm);
+
+            // Store search term for duplicate prevention
+            sessionStorage.setItem('wsc_last_search_term', searchTerm);
+        }, true);
+    }
+
+    /**
+     * Register live search (autocomplete) click listener for select_item
+     */
+    function registerLiveSearchListener() {
+        if (window.__wscDebugMode) console.log('🔧 Registering live search click listener');
+
+        document.addEventListener('click', function(event) {
+            const target = event.target instanceof Element ? event.target : null;
+            if (!target) return;
+
+            // Find if click is inside search suggest/autocomplete dropdown
+            const searchSuggestItem = target.closest(
+                '.search-suggest-product, .search-suggest-product-link, [data-search-suggest-link], .search-result-item, .search-suggest-container a'
+            );
+
+            if (!searchSuggestItem) return;
+
+            if (window.__wscDebugMode) console.log('🔧 Live search item clicked!', searchSuggestItem);
+
+            // Get search term from active search input
+            const searchInput = document.querySelector('input[type="search"], input[name="search"]');
+            const searchTerm = searchInput ? searchInput.value.trim() : '';
+
+            if (searchTerm) {
+                if (window.__wscDebugMode) console.log('🔧 Pushing view_search_results for live search term:', searchTerm);
+
+                // Fire view_search_results when clicking item from live search
+                pushSearchEvent(searchTerm);
+
+                // Store to prevent duplicate
+                sessionStorage.setItem('wsc_last_search_term', searchTerm);
+            }
+
+            // Note: select_item event is already handled by add_to_cart.html.twig → registerSelectItemListener()
         }, true);
     }
 
@@ -82,14 +169,18 @@
     if (document.readyState === 'loading') {
         if (window.__wscDebugMode) console.log('🔧 DOM is still loading, waiting for DOMContentLoaded...');
         document.addEventListener('DOMContentLoaded', function() {
-            if (window.__wscDebugMode) console.log('🔧 DOMContentLoaded fired, initializing search listener...');
+            if (window.__wscDebugMode) console.log('🔧 DOMContentLoaded fired, initializing search tracking...');
+            checkSearchResultsPage();
             registerSearchListener();
-            if (window.__wscDebugMode) console.log('✅ WSC Search listener registered successfully!');
+            registerLiveSearchListener();
+            if (window.__wscDebugMode) console.log('✅ WSC Search tracking initialized successfully!');
         });
     } else {
-        if (window.__wscDebugMode) console.log('🔧 DOM already loaded, initializing search listener immediately...');
+        if (window.__wscDebugMode) console.log('🔧 DOM already loaded, initializing search tracking immediately...');
+        checkSearchResultsPage();
         registerSearchListener();
-        if (window.__wscDebugMode) console.log('✅ WSC Search listener registered successfully!');
+        registerLiveSearchListener();
+        if (window.__wscDebugMode) console.log('✅ WSC Search tracking initialized successfully!');
     }
 })();
 </script>

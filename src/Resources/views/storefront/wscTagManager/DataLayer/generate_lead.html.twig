@@ -3,6 +3,11 @@
 (function() {
     'use strict';
 
+    // Set debug mode from backend config (if not already set)
+    if (typeof window.__wscDebugMode === 'undefined') {
+        window.__wscDebugMode = {{ config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') ? 'true' : 'false' }};
+    }
+
     if (window.__wscDebugMode) console.log('🔧 WSC Generate Lead Tracking: Loading...');
 
     // Check if already initialized

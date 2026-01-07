@@ -1,5 +1,5 @@
 {# Einbindung des DataLayers für Google START #}
-    {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerGoogle') == "on" %}
+    {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerGoogle') %}
 
         {% set debugMode = config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') %}
 
@@ -62,7 +62,7 @@
 {# Einbindung des DataLayers für Google ENDE #}
 
 {# Einbindung des DataLayers für Matomo START #}
-    {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerMatomo') == "on" %}
+    {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerMatomo') %}
 
         {% set debugMode = config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') %}
 
@@ -113,6 +113,6 @@
 {# VERSCHOBEN: Wird jetzt in meta.html.twig geladen, damit es auf ALLEN Seiten verfügbar ist (Issue #18) #}
 
 {# Checkout Tracking: add_payment_info & add_shipping_info (Issue #2) #}
-{% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerGoogle') == "on" or config('WscSwCookieDataLayer.config.wscTagManagerDataLayerMatomo') == "on" %}
+{% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerGoogle') or config('WscSwCookieDataLayer.config.wscTagManagerDataLayerMatomo') %}
     {% sw_include '@WscSwCookieDataLayer/storefront/wscTagManager/DataLayer/checkout_tracking.html.twig' %}
 {% endif %}
