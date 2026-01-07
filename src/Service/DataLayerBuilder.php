@@ -72,14 +72,13 @@ class DataLayerBuilder
                     'item_id' => $product->getProductNumber() ?? '',
                     'item_name' => $product->getTranslated()['name'] ?? 'Unknown Product',
                     'affiliation' => $request->cookies->get('partner', 'kein_Partner'),
-                    'currency' => $context->getCurrency()->getIsoCode(),
                 ]
             ];
 
             // Add discount if available
             $calculatedPrice = $product->getCalculatedPrice();
             if ($calculatedPrice && $calculatedPrice->getListPrice() && $calculatedPrice->getListPrice()->getPercentage() > 0) {
-                $items[0]['discount'] = $calculatedPrice->getListPrice()->getPercentage();
+                $items[0]['discount'] = round($calculatedPrice->getListPrice()->getPercentage(), 2);
             }
 
             // Add brand/manufacturer
@@ -112,16 +111,25 @@ class DataLayerBuilder
             $calculatedPrice = $product->getCalculatedPrice();
             if ($calculatedPrice) {
                 // GA4 Standard: price = Brutto (with tax)
-                $items[0]['price'] = $calculatedPrice->getUnitPrice(); // Brutto per unit
+                $items[0]['price'] = round($calculatedPrice->getUnitPrice(), 2); // Brutto per unit
 
                 // Extra fields for GTM (not GA4 standard):
-                $items[0]['price_net'] = $calculatedPrice->getUnitPrice() - ($calculatedPrice->getCalculatedTaxes()->getAmount() / $calculatedPrice->getQuantity());
-                $items[0]['price_gross'] = $calculatedPrice->getUnitPrice(); // Same as price
+                // Protect against division by zero
+                $quantity = $calculatedPrice->getQuantity();
+                if ($quantity > 0) {
+                    $netPrice = $calculatedPrice->getUnitPrice() - ($calculatedPrice->getCalculatedTaxes()->getAmount() / $quantity);
+                    $items[0]['price_net'] = round($netPrice, 2);
+                    $items[0]['price_gross'] = round($calculatedPrice->getUnitPrice(), 2); // Same as price
 
-                // Tax per unit (optional, for GTM)
-                $taxAmount = $calculatedPrice->getCalculatedTaxes()->getAmount() / $calculatedPrice->getQuantity();
-                if ($taxAmount > 0) {
-                    $items[0]['tax'] = round($taxAmount, 2);
+                    // Tax per unit (optional, for GTM)
+                    $taxAmount = $calculatedPrice->getCalculatedTaxes()->getAmount() / $quantity;
+                    if ($taxAmount > 0) {
+                        $items[0]['tax'] = round($taxAmount, 2);
+                    }
+                } else {
+                    // Fallback for quantity = 0
+                    $items[0]['price_net'] = round($calculatedPrice->getUnitPrice(), 2);
+                    $items[0]['price_gross'] = round($calculatedPrice->getUnitPrice(), 2);
                 }
             } else {
                 // Fallback if no calculated price
@@ -132,9 +140,14 @@ class DataLayerBuilder
 
             $items[0]['quantity'] = $product->getMinPurchase() ?? 1;
 
+            // Calculate value for GA4 (price * quantity)
+            $eventValue = ($items[0]['price'] ?? 0) * ($items[0]['quantity'] ?? 1);
+
             $result = [
                 'event' => 'view_item',
                 'ecommerce' => [
+                    'currency' => $context->getCurrency()->getIsoCode(),
+                    'value' => round($eventValue, 2), // GA4 Best Practice
                     'items' => $items,
                 ],
                 'user' => $this->buildUserData($context),
@@ -169,6 +182,8 @@ class DataLayerBuilder
                 'event' => 'view_item',
                 '_wsc_error' => 'Failed to build complete event data',
                 'ecommerce' => [
+                    'currency' => $context->getCurrency()->getIsoCode(),
+                    'value' => 0,
                     'items' => [],
                 ],
             ];
@@ -184,76 +199,156 @@ class DataLayerBuilder
         string $listId,
         string $listName
     ): array {
-        $items = [];
-        $index = 1;
+        $debugMode = $this->isDebugMode($context->getSalesChannelId());
 
-        foreach ($products as $product) {
-            $item = [
-                'item_id' => $product->getProductNumber() ?? '',
-                'item_name' => $product->getTranslated()['name'] ?? '',
-                'affiliation' => 'kein_Partner',
-                'currency' => $context->getCurrency()->getIsoCode(),
-                'index' => $index++,
+        try {
+            if ($debugMode) {
+                $this->logger->info('WSC DataLayer: Building view_item_list event', [
+                    'listId' => $listId,
+                    'listName' => $listName,
+                    'productsCount' => $products->count(),
+                ]);
+            }
+
+            // Validate input
+            if ($products->count() === 0) {
+                $this->logger->warning('WSC DataLayer: Product collection is empty for view_item_list', [
+                    'listId' => $listId,
+                    'listName' => $listName,
+                ]);
+            }
+
+            $items = [];
+            $index = 1;
+
+            foreach ($products as $product) {
+                try {
+                    $item = [
+                        'item_id' => $product->getProductNumber() ?? '',
+                        'item_name' => $product->getTranslated()['name'] ?? '',
+                        'affiliation' => 'kein_Partner',
+                        'index' => $index++,
+                    ];
+
+                    // Add brand
+                    if ($product->getManufacturer()) {
+                        $item['item_brand'] = $product->getManufacturer()->getTranslated()['name'] ?? '';
+                    }
+
+                    // Add categories
+                    if ($product->getSeoCategory() && $product->getSeoCategory()->getTranslated()['breadcrumb']) {
+                        $breadcrumbs = $product->getSeoCategory()->getTranslated()['breadcrumb'];
+                        $catIndex = 0;
+                        foreach ($breadcrumbs as $breadcrumb) {
+                            $key = $catIndex === 0 ? 'item_category' : 'item_category' . ($catIndex + 1);
+                            $item[$key] = $breadcrumb;
+                            $catIndex++;
+                        }
+                    }
+
+                    // Add variant
+                    if ($product->getVariation() && count($product->getVariation()) > 0) {
+                        $variants = [];
+                        foreach ($product->getVariation() as $variation) {
+                            $variants[] = ($variation['group'] ?? '') . ':' . ($variation['option'] ?? '');
+                        }
+                        $item['item_variant'] = implode('|', $variants);
+                    }
+
+                    // Add price (Issue #2: Fixed price calculation)
+                    // NOTE: price_net and price_gross are NOT GA4 standard, but useful for GTM
+                    $calculatedPrice = $product->getCalculatedPrice();
+                    if ($calculatedPrice) {
+                        // GA4 Standard: price = Brutto per unit
+                        $item['price'] = round($calculatedPrice->getUnitPrice(), 2); // Brutto per unit
+
+                        // Extra fields for GTM (not GA4 standard):
+                        // Protect against division by zero
+                        $quantity = $calculatedPrice->getQuantity();
+                        if ($quantity > 0) {
+                            $netPrice = $calculatedPrice->getUnitPrice() - ($calculatedPrice->getCalculatedTaxes()->getAmount() / $quantity);
+                            $item['price_net'] = round($netPrice, 2);
+                            $item['price_gross'] = round($calculatedPrice->getUnitPrice(), 2); // Same as price
+
+                            // Tax per unit (optional)
+                            $taxAmount = $calculatedPrice->getCalculatedTaxes()->getAmount() / $quantity;
+                            if ($taxAmount > 0) {
+                                $item['tax'] = round($taxAmount, 2);
+                            }
+                        } else {
+                            // Fallback for quantity = 0
+                            $item['price_net'] = round($calculatedPrice->getUnitPrice(), 2);
+                            $item['price_gross'] = round($calculatedPrice->getUnitPrice(), 2);
+                        }
+                    } else {
+                        // Fallback if no calculated price
+                        $item['price'] = 0;
+                        $item['price_net'] = 0;
+                        $item['price_gross'] = 0;
+                    }
+
+                    $item['quantity'] = 1;
+
+                    $items[] = $item;
+
+                } catch (\Exception $e) {
+                    // Log error but continue with other products
+                    $this->logger->error('WSC DataLayer: Failed to process product in view_item_list', [
+                        'error' => $e->getMessage(),
+                        'productId' => $product->getId() ?? 'NULL',
+                        'productNumber' => $product->getProductNumber() ?? 'NULL',
+                    ]);
+                    continue;
+                }
+            }
+
+            $result = [
+                'event' => 'view_item_list',
+                'ecommerce' => [
+                    'item_list_id' => $listId,
+                    'item_list_name' => $listName,
+                    'currency' => $context->getCurrency()->getIsoCode(),
+                    'items' => $items,
+                ],
+                'user' => $this->buildUserData($context),
             ];
 
-            // Add brand
-            if ($product->getManufacturer()) {
-                $item['item_brand'] = $product->getManufacturer()->getTranslated()['name'] ?? '';
+            if ($debugMode) {
+                $result['_wsc_debug'] = [
+                    'event_type' => 'view_item_list',
+                    'list_id' => $listId,
+                    'items_count' => count($items),
+                    'timestamp' => date('Y-m-d H:i:s'),
+                ];
+
+                $this->logger->info('WSC DataLayer: view_item_list event built successfully', [
+                    'items_count' => count($items),
+                    'list_name' => $listName,
+                ]);
             }
 
-            // Add categories
-            if ($product->getSeoCategory() && $product->getSeoCategory()->getTranslated()['breadcrumb']) {
-                $breadcrumbs = $product->getSeoCategory()->getTranslated()['breadcrumb'];
-                $catIndex = 0;
-                foreach ($breadcrumbs as $breadcrumb) {
-                    $key = $catIndex === 0 ? 'item_category' : 'item_category' . ($catIndex + 1);
-                    $item[$key] = $breadcrumb;
-                    $catIndex++;
-                }
-            }
+            return $result;
 
-            // Add variant
-            if ($product->getVariation() && count($product->getVariation()) > 0) {
-                $variants = [];
-                foreach ($product->getVariation() as $variation) {
-                    $variants[] = ($variation['group'] ?? '') . ':' . ($variation['option'] ?? '');
-                }
-                $item['item_variant'] = implode('|', $variants);
-            }
+        } catch (\Exception $e) {
+            $this->logger->error('WSC DataLayer: Failed to build view_item_list event', [
+                'error' => $e->getMessage(),
+                'listId' => $listId,
+                'listName' => $listName,
+                'trace' => $debugMode ? $e->getTraceAsString() : 'Enable debug mode for stack trace',
+            ]);
 
-            // Add price (Issue #2: Fixed price calculation)
-            // NOTE: price_net and price_gross are NOT GA4 standard, but useful for GTM
-            $calculatedPrice = $product->getCalculatedPrice();
-            if ($calculatedPrice) {
-                // GA4 Standard: price = Brutto per unit
-                $item['price'] = $calculatedPrice->getUnitPrice(); // Brutto per unit
-
-                // Extra fields for GTM (not GA4 standard):
-                $netPrice = $calculatedPrice->getUnitPrice() - ($calculatedPrice->getCalculatedTaxes()->getAmount() / $calculatedPrice->getQuantity());
-                $item['price_net'] = round($netPrice, 2);
-                $item['price_gross'] = $calculatedPrice->getUnitPrice(); // Same as price
-
-                // Tax per unit (optional)
-                $taxAmount = $calculatedPrice->getCalculatedTaxes()->getAmount() / $calculatedPrice->getQuantity();
-                if ($taxAmount > 0) {
-                    $item['tax'] = round($taxAmount, 2);
-                }
-            }
-
-            $item['quantity'] = 1;
-
-            $items[] = $item;
+            // Return minimal event data on error
+            return [
+                'event' => 'view_item_list',
+                '_wsc_error' => 'Failed to build complete event data',
+                'ecommerce' => [
+                    'item_list_id' => $listId,
+                    'item_list_name' => $listName,
+                    'currency' => $context->getCurrency()->getIsoCode(),
+                    'items' => [],
+                ],
+            ];
         }
-
-        return [
-            'event' => 'view_item_list',
-            'ecommerce' => [
-                'item_list_id' => $listId,
-                'item_list_name' => $listName,
-                'items' => $items,
-            ],
-            'user' => $this->buildUserData($context),
-        ];
     }
 
     /**
@@ -278,7 +373,6 @@ class DataLayerBuilder
                     'item_id' => $lineItem->getReferencedId() ?? '',
                     'item_name' => $lineItem->getLabel() ?? '',
                     'affiliation' => 'kein_Partner',
-                    'currency' => $context->getCurrency()->getIsoCode(),
                     'quantity' => $lineItem->getQuantity(),
                 ];
 
@@ -287,17 +381,25 @@ class DataLayerBuilder
                 if ($lineItem->getPrice()) {
                     $itemPrice = $lineItem->getPrice();
                     // GA4 Standard: price = Brutto per unit
-                    $itemData['price'] = $itemPrice->getUnitPrice(); // Brutto per unit
+                    $itemData['price'] = round($itemPrice->getUnitPrice(), 2); // Brutto per unit
 
                     // Extra fields for GTM:
-                    $netPrice = $itemPrice->getUnitPrice() - ($itemPrice->getCalculatedTaxes()->getAmount() / $lineItem->getQuantity());
-                    $itemData['price_net'] = round($netPrice, 2);
-                    $itemData['price_gross'] = $itemPrice->getUnitPrice();
+                    // Protect against division by zero
+                    $quantity = $lineItem->getQuantity();
+                    if ($quantity > 0) {
+                        $netPrice = $itemPrice->getUnitPrice() - ($itemPrice->getCalculatedTaxes()->getAmount() / $quantity);
+                        $itemData['price_net'] = round($netPrice, 2);
+                        $itemData['price_gross'] = round($itemPrice->getUnitPrice(), 2);
 
-                    // Tax per unit
-                    $taxAmount = $itemPrice->getCalculatedTaxes()->getAmount() / $lineItem->getQuantity();
-                    if ($taxAmount > 0) {
-                        $itemData['tax'] = round($taxAmount, 2);
+                        // Tax per unit
+                        $taxAmount = $itemPrice->getCalculatedTaxes()->getAmount() / $quantity;
+                        if ($taxAmount > 0) {
+                            $itemData['tax'] = round($taxAmount, 2);
+                        }
+                    } else {
+                        // Fallback for quantity = 0
+                        $itemData['price_net'] = round($itemPrice->getUnitPrice(), 2);
+                        $itemData['price_gross'] = round($itemPrice->getUnitPrice(), 2);
                     }
                 } else {
                     $itemData['price'] = 0;
@@ -312,7 +414,7 @@ class DataLayerBuilder
                 'event' => 'view_cart',
                 'ecommerce' => [
                     'currency' => $context->getCurrency()->getIsoCode(),
-                    'value' => $cart->getPrice()->getTotalPrice(),
+                    'value' => round($cart->getPrice()->getTotalPrice(), 2),
                     'items' => $items,
                 ],
                 'user' => $this->buildUserData($context),
@@ -344,6 +446,8 @@ class DataLayerBuilder
                 'event' => 'view_cart',
                 '_wsc_error' => 'Failed to build complete event data',
                 'ecommerce' => [
+                    'currency' => $context->getCurrency()->getIsoCode(),
+                    'value' => 0,
                     'items' => [],
                 ],
             ];
@@ -355,49 +459,117 @@ class DataLayerBuilder
      */
     public function buildBeginCheckoutData(Cart $cart, SalesChannelContext $context): array
     {
-        $items = [];
+        $debugMode = $this->isDebugMode($context->getSalesChannelId());
 
-        foreach ($cart->getLineItems() as $lineItem) {
-            $itemData = [
-                'item_id' => $lineItem->getReferencedId() ?? '',
-                'item_name' => $lineItem->getLabel() ?? '',
-                'affiliation' => 'kein_Partner',
-                'currency' => $context->getCurrency()->getIsoCode(),
-                'quantity' => $lineItem->getQuantity(),
-            ];
-
-            // Add price (Issue #2: Fixed price calculation)
-            if ($lineItem->getPrice()) {
-                $itemPrice = $lineItem->getPrice();
-                $itemData['price'] = $itemPrice->getUnitPrice();
-
-                // Extra fields for GTM (not GA4 standard):
-                $netPrice = $itemPrice->getUnitPrice() - ($itemPrice->getCalculatedTaxes()->getAmount() / $lineItem->getQuantity());
-                $itemData['price_net'] = round($netPrice, 2);
-                $itemData['price_gross'] = $itemPrice->getUnitPrice();
-
-                $taxAmount = $itemPrice->getCalculatedTaxes()->getAmount() / $lineItem->getQuantity();
-                if ($taxAmount > 0) {
-                    $itemData['tax'] = round($taxAmount, 2);
-                }
-            } else {
-                $itemData['price'] = 0;
-                $itemData['price_net'] = 0;
-                $itemData['price_gross'] = 0;
+        try {
+            if ($debugMode) {
+                $this->logger->info('WSC DataLayer: Building begin_checkout event', [
+                    'cartToken' => $cart->getToken(),
+                    'lineItemsCount' => $cart->getLineItems()->count(),
+                ]);
             }
 
-            $items[] = $itemData;
-        }
+            // Validate cart
+            if ($cart->getLineItems()->count() === 0) {
+                $this->logger->warning('WSC DataLayer: Cart is empty for begin_checkout event', [
+                    'cartToken' => $cart->getToken(),
+                ]);
+            }
 
-        return [
-            'event' => 'begin_checkout',
-            'ecommerce' => [
-                'currency' => $context->getCurrency()->getIsoCode(),
-                'value' => $cart->getPrice()->getTotalPrice(),
-                'items' => $items,
-            ],
-            'user' => $this->buildUserData($context),
-        ];
+            $items = [];
+
+            foreach ($cart->getLineItems() as $lineItem) {
+                try {
+                    $itemData = [
+                        'item_id' => $lineItem->getReferencedId() ?? '',
+                        'item_name' => $lineItem->getLabel() ?? '',
+                        'affiliation' => 'kein_Partner',
+                        'quantity' => $lineItem->getQuantity(),
+                    ];
+
+                    // Add price (Issue #2: Fixed price calculation)
+                    if ($lineItem->getPrice()) {
+                        $itemPrice = $lineItem->getPrice();
+                        $itemData['price'] = round($itemPrice->getUnitPrice(), 2);
+
+                        // Extra fields for GTM (not GA4 standard):
+                        // Protect against division by zero
+                        $quantity = $lineItem->getQuantity();
+                        if ($quantity > 0) {
+                            $netPrice = $itemPrice->getUnitPrice() - ($itemPrice->getCalculatedTaxes()->getAmount() / $quantity);
+                            $itemData['price_net'] = round($netPrice, 2);
+                            $itemData['price_gross'] = round($itemPrice->getUnitPrice(), 2);
+
+                            $taxAmount = $itemPrice->getCalculatedTaxes()->getAmount() / $quantity;
+                            if ($taxAmount > 0) {
+                                $itemData['tax'] = round($taxAmount, 2);
+                            }
+                        } else {
+                            // Fallback for quantity = 0
+                            $itemData['price_net'] = round($itemPrice->getUnitPrice(), 2);
+                            $itemData['price_gross'] = round($itemPrice->getUnitPrice(), 2);
+                        }
+                    } else {
+                        $itemData['price'] = 0;
+                        $itemData['price_net'] = 0;
+                        $itemData['price_gross'] = 0;
+                    }
+
+                    $items[] = $itemData;
+
+                } catch (\Exception $e) {
+                    // Log error but continue with other items
+                    $this->logger->error('WSC DataLayer: Failed to process line item in begin_checkout', [
+                        'error' => $e->getMessage(),
+                        'lineItemId' => $lineItem->getId() ?? 'NULL',
+                    ]);
+                    continue;
+                }
+            }
+
+            $result = [
+                'event' => 'begin_checkout',
+                'ecommerce' => [
+                    'currency' => $context->getCurrency()->getIsoCode(),
+                    'value' => round($cart->getPrice()->getTotalPrice(), 2),
+                    'items' => $items,
+                ],
+                'user' => $this->buildUserData($context),
+            ];
+
+            if ($debugMode) {
+                $result['_wsc_debug'] = [
+                    'event_type' => 'begin_checkout',
+                    'items_count' => count($items),
+                    'cart_value' => $cart->getPrice()->getTotalPrice(),
+                    'timestamp' => date('Y-m-d H:i:s'),
+                ];
+
+                $this->logger->info('WSC DataLayer: begin_checkout event built successfully', [
+                    'items_count' => count($items),
+                    'total_value' => $cart->getPrice()->getTotalPrice(),
+                ]);
+            }
+
+            return $result;
+
+        } catch (\Exception $e) {
+            $this->logger->error('WSC DataLayer: Failed to build begin_checkout event', [
+                'error' => $e->getMessage(),
+                'trace' => $debugMode ? $e->getTraceAsString() : 'Enable debug mode for stack trace',
+            ]);
+
+            // Return minimal event data on error
+            return [
+                'event' => 'begin_checkout',
+                '_wsc_error' => 'Failed to build complete event data',
+                'ecommerce' => [
+                    'currency' => $context->getCurrency()->getIsoCode(),
+                    'value' => 0,
+                    'items' => [],
+                ],
+            ];
+        }
     }
 
     /**
@@ -431,7 +603,6 @@ class DataLayerBuilder
                     'item_id' => $lineItem->getReferencedId() ?? '',
                     'item_name' => $lineItem->getLabel() ?? '',
                     'affiliation' => 'kein_Partner',
-                    'currency' => $context->getCurrency()->getIsoCode(),
                     'quantity' => $lineItem->getQuantity(),
                 ];
 
@@ -440,16 +611,24 @@ class DataLayerBuilder
                 if ($lineItem->getPrice()) {
                     $itemPrice = $lineItem->getPrice();
                     // GA4: price per unit (Brutto)
-                    $itemData['price'] = $itemPrice->getUnitPrice();
+                    $itemData['price'] = round($itemPrice->getUnitPrice(), 2);
 
                     // Extra fields for GTM (not GA4 standard):
-                    $netPrice = $itemPrice->getUnitPrice() - ($itemPrice->getCalculatedTaxes()->getAmount() / $lineItem->getQuantity());
-                    $itemData['price_net'] = round($netPrice, 2);
-                    $itemData['price_gross'] = $itemPrice->getUnitPrice();
+                    // Protect against division by zero
+                    $quantity = $lineItem->getQuantity();
+                    if ($quantity > 0) {
+                        $netPrice = $itemPrice->getUnitPrice() - ($itemPrice->getCalculatedTaxes()->getAmount() / $quantity);
+                        $itemData['price_net'] = round($netPrice, 2);
+                        $itemData['price_gross'] = round($itemPrice->getUnitPrice(), 2);
 
-                    $taxAmount = $itemPrice->getCalculatedTaxes()->getAmount() / $lineItem->getQuantity();
-                    if ($taxAmount > 0) {
-                        $itemData['tax'] = round($taxAmount, 2);
+                        $taxAmount = $itemPrice->getCalculatedTaxes()->getAmount() / $quantity;
+                        if ($taxAmount > 0) {
+                            $itemData['tax'] = round($taxAmount, 2);
+                        }
+                    } else {
+                        // Fallback for quantity = 0
+                        $itemData['price_net'] = round($itemPrice->getUnitPrice(), 2);
+                        $itemData['price_gross'] = round($itemPrice->getUnitPrice(), 2);
                     }
                 } else {
                     // Fallback: use getTotalPrice() and divide by quantity
@@ -478,9 +657,9 @@ class DataLayerBuilder
                 'transaction_id' => $order->getOrderNumber(),
                 'affiliation' => 'kein_Partner',
                 'currency' => $context->getCurrency()->getIsoCode(),
-                'value' => $order->getPrice()->getTotalPrice(),
-                'tax' => $order->getPrice()->getCalculatedTaxes()->getAmount(),
-                'shipping' => $order->getShippingCosts()->getTotalPrice(),
+                'value' => round($order->getPrice()->getTotalPrice(), 2),
+                'tax' => round($order->getPrice()->getCalculatedTaxes()->getAmount(), 2),
+                'shipping' => round($order->getShippingCosts()->getTotalPrice(), 2),
                 'items' => $items,
             ];
 
@@ -535,6 +714,10 @@ class DataLayerBuilder
                 '_wsc_error' => 'CRITICAL: Failed to build complete purchase event data',
                 'ecommerce' => [
                     'transaction_id' => $order->getOrderNumber() ?? 'ERROR',
+                    'currency' => $context->getCurrency()->getIsoCode(),
+                    'value' => 0,
+                    'tax' => 0,
+                    'shipping' => 0,
                     'items' => [],
                 ],
             ];
@@ -546,59 +729,81 @@ class DataLayerBuilder
      */
     private function buildUserData(SalesChannelContext $context, bool $includeExtendedData = false): array
     {
-        $customer = $context->getCustomer();
+        try {
+            $customer = $context->getCustomer();
 
-        if (!$customer) {
+            if (!$customer) {
+                return [
+                    'user_email' => '',
+                    'user_country' => '',
+                    'user_city' => '',
+                ];
+            }
+
+            $billingAddress = $customer->getDefaultBillingAddress();
+
+            $userData = [
+                'user_email' => $customer->getEmail() ?? '',
+                'user_country' => $billingAddress && $billingAddress->getCountry()
+                    ? $billingAddress->getCountry()->getTranslated()['name'] ?? ''
+                    : '',
+                'user_city' => $billingAddress ? $billingAddress->getCity() ?? '' : '',
+            ];
+
+            // Extended user data (Issue #2: For purchase event)
+            if ($includeExtendedData && $customer) {
+                try {
+                    // Name
+                    $userData['user_first_name'] = $customer->getFirstName() ?? '';
+                    $userData['user_last_name'] = $customer->getLastName() ?? '';
+
+                    // Birthday (if available)
+                    if ($customer->getBirthday()) {
+                        $userData['user_birthday'] = $customer->getBirthday()->format('Y-m-d');
+                    }
+
+                    // Customer Number
+                    $userData['user_customer_number'] = $customer->getCustomerNumber() ?? '';
+
+                    // Billing Address (extended)
+                    if ($billingAddress) {
+                        $userData['user_street'] = $billingAddress->getStreet() ?? '';
+                        $userData['user_zipcode'] = $billingAddress->getZipcode() ?? '';
+                        $userData['user_phone'] = $billingAddress->getPhoneNumber() ?? '';
+                        $userData['user_company'] = $billingAddress->getCompany() ?? '';
+
+                        // Country ISO Code
+                        if ($billingAddress->getCountry()) {
+                            $userData['user_country_iso'] = $billingAddress->getCountry()->getIso() ?? '';
+                        }
+                    }
+
+                    // Customer Group
+                    if ($customer->getGroup()) {
+                        $userData['user_customer_group'] = $customer->getGroup()->getTranslated()['name'] ?? '';
+                    }
+                } catch (\Exception $e) {
+                    // Log error but return basic user data
+                    $this->logger->error('WSC DataLayer: Failed to build extended user data', [
+                        'error' => $e->getMessage(),
+                        'customerId' => $customer->getId() ?? 'NULL',
+                    ]);
+                }
+            }
+
+            return $userData;
+
+        } catch (\Exception $e) {
+            // Return empty user data on error
+            $this->logger->error('WSC DataLayer: Failed to build user data', [
+                'error' => $e->getMessage(),
+            ]);
+
             return [
                 'user_email' => '',
                 'user_country' => '',
                 'user_city' => '',
             ];
         }
-
-        $billingAddress = $customer->getDefaultBillingAddress();
-
-        $userData = [
-            'user_email' => $customer->getEmail() ?? '',
-            'user_country' => $billingAddress && $billingAddress->getCountry()
-                ? $billingAddress->getCountry()->getTranslated()['name'] ?? ''
-                : '',
-            'user_city' => $billingAddress ? $billingAddress->getCity() ?? '' : '',
-        ];
-
-        // Extended user data (Issue #2: For purchase event)
-        if ($includeExtendedData && $customer) {
-            // Name
-            $userData['user_first_name'] = $customer->getFirstName() ?? '';
-            $userData['user_last_name'] = $customer->getLastName() ?? '';
-
-            // Birthday (if available)
-            if ($customer->getBirthday()) {
-                $userData['user_birthday'] = $customer->getBirthday()->format('Y-m-d');
-            }
-
-            // Customer Number
-            $userData['user_customer_number'] = $customer->getCustomerNumber() ?? '';
-
-            // Billing Address (extended)
-            if ($billingAddress) {
-                $userData['user_street'] = $billingAddress->getStreet() ?? '';
-                $userData['user_zipcode'] = $billingAddress->getZipcode() ?? '';
-                $userData['user_phone'] = $billingAddress->getPhoneNumber() ?? '';
-                $userData['user_company'] = $billingAddress->getCompany() ?? '';
-
-                // Country ISO Code
-                if ($billingAddress->getCountry()) {
-                    $userData['user_country_iso'] = $billingAddress->getCountry()->getIso() ?? '';
-                }
-            }
-
-            // Customer Group
-            if ($customer->getGroup()) {
-                $userData['user_customer_group'] = $customer->getGroup()->getTranslated()['name'] ?? '';
-            }
-        }
-
-        return $userData;
     }
 }

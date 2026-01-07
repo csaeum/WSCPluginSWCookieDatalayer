@@ -132,23 +132,54 @@ class DataLayerSubscriber implements EventSubscriberInterface
      */
     public function onProductListingResult(ProductListingResultEvent $event): void
     {
-        $result = $event->getResult();
-        $request = $event->getRequest();
-        $context = $event->getSalesChannelContext();
+        $debugMode = $this->isDebugMode($event->getSalesChannelContext()->getSalesChannelId());
 
-        // Get category information from request
-        $navigationId = $request->attributes->get('navigationId');
+        try {
+            $result = $event->getResult();
+            $request = $event->getRequest();
+            $context = $event->getSalesChannelContext();
 
-        // Build view_item_list data
-        $dataLayerEvent = $this->dataLayerBuilder->buildViewItemListData(
-            $result->getEntities(),
-            $context,
-            $navigationId ?? 'unknown',
-            $request->attributes->get('_route_params')['navigationId'] ?? 'Product Listing'
-        );
+            if ($debugMode) {
+                $this->logger->info('WSC DataLayer Subscriber: ProductListingResultEvent triggered', [
+                    'productsCount' => $result->getEntities()->count(),
+                    'route' => $request->attributes->get('_route'),
+                ]);
+            }
 
-        // Store in request attributes for later use in NavigationPageLoadedEvent
-        $request->attributes->set('wscDataLayerEvent', $dataLayerEvent);
+            // Validate result
+            if (!$result->getEntities()) {
+                if ($debugMode) {
+                    $this->logger->warning('WSC DataLayer Subscriber: No entities in ProductListingResultEvent');
+                }
+                return;
+            }
+
+            // Get category information from request
+            $navigationId = $request->attributes->get('navigationId');
+
+            // Build view_item_list data
+            $dataLayerEvent = $this->dataLayerBuilder->buildViewItemListData(
+                $result->getEntities(),
+                $context,
+                $navigationId ?? 'unknown',
+                $request->attributes->get('_route_params')['navigationId'] ?? 'Product Listing'
+            );
+
+            // Store in request attributes for later use in NavigationPageLoadedEvent
+            $request->attributes->set('wscDataLayerEvent', $dataLayerEvent);
+
+            if ($debugMode) {
+                $this->logger->info('WSC DataLayer Subscriber: ProductListingResult data prepared', [
+                    'navigationId' => $navigationId,
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            $this->logger->error('WSC DataLayer Subscriber: Exception in onProductListingResult', [
+                'error' => $e->getMessage(),
+                'trace' => $debugMode ? $e->getTraceAsString() : 'Enable debug mode for stack trace',
+            ]);
+        }
     }
 
     /**
@@ -403,10 +434,13 @@ class DataLayerSubscriber implements EventSubscriberInterface
                 $shippingMethod = $delivery?->getShippingMethod();
 
                 if ($shippingMethod) {
+                    // Extract coupon codes from cart
+                    $couponCodes = $this->extractCouponCodes($cart);
+
                     $properties = [
                         'currency' => $salesChannelContext->getCurrency()->getIsoCode(),
                         'value' => $cart->getPrice()->getTotalPrice(),
-                        'coupon' => '', // TODO: Extract coupon if available
+                        'coupon' => !empty($couponCodes) ? implode(',', $couponCodes) : '',
                         'shipping_tier' => $shippingMethod->getName(),
                     ];
 
@@ -438,10 +472,13 @@ class DataLayerSubscriber implements EventSubscriberInterface
                 $paymentMethod = $transaction?->getPaymentMethod();
 
                 if ($paymentMethod) {
+                    // Extract coupon codes from cart
+                    $couponCodes = $this->extractCouponCodes($cart);
+
                     $properties = [
                         'currency' => $salesChannelContext->getCurrency()->getIsoCode(),
                         'value' => $cart->getPrice()->getTotalPrice(),
-                        'coupon' => '', // TODO: Extract coupon if available
+                        'coupon' => !empty($couponCodes) ? implode(',', $couponCodes) : '',
                         'payment_type' => $paymentMethod->getName(),
                     ];
 
@@ -458,5 +495,31 @@ class DataLayerSubscriber implements EventSubscriberInterface
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Extract coupon/promotion codes from cart
+     */
+    private function extractCouponCodes($cart): array
+    {
+        $couponCodes = [];
+
+        try {
+            foreach ($cart->getLineItems() as $lineItem) {
+                // Shopware Promotion Line Items have type = 'promotion'
+                if ($lineItem->getType() === 'promotion' && $lineItem->getPayload()) {
+                    $payload = $lineItem->getPayload();
+                    if (isset($payload['code'])) {
+                        $couponCodes[] = $payload['code'];
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            $this->logger->error('WSC DataLayer Subscriber: Failed to extract coupon codes', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $couponCodes;
     }
 }

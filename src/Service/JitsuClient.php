@@ -67,37 +67,61 @@ class JitsuClient
         ?CustomerEntity $customer,
         string $sessionId
     ): array {
-        $request = $this->requestStack->getCurrentRequest();
+        try {
+            $request = $this->requestStack->getCurrentRequest();
 
-        $payload = [
-            'event' => $eventName,
-            'properties' => $properties,
-            'context' => [
-                'ip' => $request?->getClientIp() ?? 'unknown',
-                'userAgent' => $request?->headers->get('User-Agent') ?? 'unknown',
-                'page' => [
-                    'url' => $request?->getUri() ?? '',
-                    'referrer' => $request?->headers->get('referer') ?? '',
+            $payload = [
+                'event' => $eventName,
+                'properties' => $properties,
+                'context' => [
+                    'ip' => $request?->getClientIp() ?? 'unknown',
+                    'userAgent' => $request?->headers->get('User-Agent') ?? 'unknown',
+                    'page' => [
+                        'url' => $request?->getUri() ?? '',
+                        'referrer' => $request?->headers->get('referer') ?? '',
+                    ],
                 ],
-            ],
-            'timestamp' => (new \DateTime())->format('c'),
-        ];
-
-        // Add userId if customer is logged in
-        if ($customer !== null) {
-            $payload['userId'] = $customer->getId();
-            $payload['traits'] = [
-                'email' => $customer->getEmail(),
-                'firstName' => $customer->getFirstName(),
-                'lastName' => $customer->getLastName(),
-                'customerNumber' => $customer->getCustomerNumber(),
+                'timestamp' => (new \DateTime())->format('c'),
             ];
-        } else {
-            // Use session ID as anonymousId for guests
-            $payload['anonymousId'] = $sessionId;
-        }
 
-        return $payload;
+            // Add userId if customer is logged in
+            if ($customer !== null) {
+                try {
+                    $payload['userId'] = $customer->getId();
+                    $payload['traits'] = [
+                        'email' => $customer->getEmail() ?? '',
+                        'firstName' => $customer->getFirstName() ?? '',
+                        'lastName' => $customer->getLastName() ?? '',
+                        'customerNumber' => $customer->getCustomerNumber() ?? '',
+                    ];
+                } catch (\Exception $e) {
+                    // Fallback to anonymousId if customer data fails
+                    $this->logError('Failed to extract customer data for Jitsu payload', [
+                        'error' => $e->getMessage(),
+                    ]);
+                    $payload['anonymousId'] = $sessionId;
+                }
+            } else {
+                // Use session ID as anonymousId for guests
+                $payload['anonymousId'] = $sessionId;
+            }
+
+            return $payload;
+
+        } catch (\Exception $e) {
+            // Return minimal payload on error
+            $this->logError('Failed to build Jitsu payload', [
+                'error' => $e->getMessage(),
+                'event' => $eventName,
+            ]);
+
+            return [
+                'event' => $eventName,
+                'properties' => $properties,
+                'anonymousId' => $sessionId,
+                'timestamp' => (new \DateTime())->format('c'),
+            ];
+        }
     }
 
     /**

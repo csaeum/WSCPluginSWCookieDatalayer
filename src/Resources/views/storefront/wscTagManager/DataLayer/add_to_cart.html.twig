@@ -219,10 +219,13 @@
 
                         const item = Object.assign({}, lastClickedProduct, { quantity: quantity });
 
+                        // Remove currency from item if it exists (should be on ecommerce level only)
+                        delete item.currency;
+
                         if (window.__wscDebugMode) console.log('🔧 Pushing add_to_cart event with data:', item);
 
                         pushEvent('add_to_cart', {
-                            currency: item.currency || getCurrency(),
+                            currency: getCurrency(),
                             value: calculateValue(item, quantity),
                             items: [item]
                         });
@@ -268,10 +271,13 @@
 
                         const item = Object.assign({}, lastClickedProduct, { quantity: quantity });
 
+                        // Remove currency from item if it exists (should be on ecommerce level only)
+                        delete item.currency;
+
                         if (window.__wscDebugMode) console.log('🔧 Pushing add_to_cart event with data:', item);
 
                         pushEvent('add_to_cart', {
-                            currency: item.currency || getCurrency(),
+                            currency: getCurrency(),
                             value: calculateValue(item, quantity),
                             items: [item]
                         });
@@ -314,8 +320,11 @@
 
             const item = Object.assign({}, productData, { quantity });
 
+            // Remove currency from item if it exists (should be on ecommerce level only)
+            delete item.currency;
+
             pushEvent('remove_from_cart', {
-                currency: item.currency || getCurrency(),
+                currency: getCurrency(),
                 value: calculateValue(item, quantity),
                 items: [item]
             });
@@ -340,8 +349,11 @@
 
             const item = Object.assign({}, productData, { quantity: 1 });
 
+            // Remove currency from item if it exists (should be on ecommerce level only)
+            delete item.currency;
+
             pushEvent('add_to_wishlist', {
-                currency: item.currency || getCurrency(),
+                currency: getCurrency(),
                 value: calculateValue(item, 1),
                 items: [item]
             });
