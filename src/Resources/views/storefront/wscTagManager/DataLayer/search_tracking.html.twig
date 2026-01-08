@@ -21,14 +21,41 @@
     const mtmLayer = window._mtm || [];
 
     /**
+     * Get user data from existing dataLayer entries
+     */
+    function getUserData() {
+        if (window.__wscDebugMode) console.log('🔧 WSC Search: Getting user data from dataLayer...');
+
+        for (let i = dataLayer.length - 1; i >= 0; i--) {
+            const entry = dataLayer[i];
+            if (entry && entry.user && Object.keys(entry.user).length > 0) {
+                if (window.__wscDebugMode) {
+                    console.log('🔧 WSC Search: Found user data at index', i, entry.user);
+                }
+                return entry.user;
+            }
+        }
+
+        if (window.__wscDebugMode) console.log('🔧 WSC Search: No user data found in dataLayer');
+        return {}; // Empty object for guest users
+    }
+
+    /**
      * Push view_search_results event to dataLayer and mtmLayer
      * GA4 Standard: view_search_results (not "search")
      */
     function pushSearchEvent(searchTerm) {
+        const userData = getUserData();
+
         const eventData = {
             event: 'view_search_results',  // GA4 Standard event name
-            search_term: searchTerm
+            search_term: searchTerm,
+            user: userData // Include user data
         };
+
+        if (window.__wscDebugMode) {
+            console.log('🔍 WSC view_search_results Event pushing:', eventData);
+        }
 
         // Push to Google Analytics / GTM
         if (Array.isArray(dataLayer)) {
@@ -41,7 +68,7 @@
         }
 
         if (window.__wscDebugMode) {
-            console.log('🔍 WSC view_search_results Event pushed:', eventData);
+            console.log('✅ WSC view_search_results Event pushed successfully');
         }
     }
 

@@ -3,58 +3,93 @@
 (function() {
     'use strict';
 
-    // Only run on checkout pages
-    if (!window.location.pathname.includes('/checkout/')) {
+    // Set debug mode from backend config
+    window.__wscCheckoutDebug = {{ config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') ? 'true' : 'false' }};
+
+    // Only run on checkout pages (improved path check for multi-language support)
+    const isCheckoutPage = window.location.pathname.includes('/checkout/') ||
+                          window.location.pathname.includes('/checkout') ||
+                          window.location.pathname.match(/\/(en|de|fr|it|es|nl)\/checkout/);
+
+    if (!isCheckoutPage) {
+        if (window.__wscCheckoutDebug) console.log('🔧 WSC Checkout Tracking: Not on checkout page, skipping');
         return;
     }
+
+    if (window.__wscCheckoutDebug) console.log('🔧 WSC Checkout Tracking: Initializing on checkout page...');
 
     const dataLayer = window.dataLayer || [];
     const mtmLayer = window._mtm || [];
 
-    // Helper: Get cart items from last DataLayer event
-    function getCartItems() {
+    // Check if already initialized (prevent double initialization from plugin)
+    if (window.__wscCheckoutTrackingInitialized) {
+        if (window.__wscCheckoutDebug) console.log('🔧 WSC Checkout Tracking: Already initialized, skipping');
+        return;
+    }
+    window.__wscCheckoutTrackingInitialized = true;
+
+    // Helper: Get cart items and user data from last DataLayer event
+    function getCartData() {
+        if (window.__wscCheckoutDebug) console.log('🔧 WSC Checkout Tracking: Getting cart data from dataLayer...');
+
         for (let i = dataLayer.length - 1; i >= 0; i--) {
             const entry = dataLayer[i];
             if (entry && entry.ecommerce && entry.ecommerce.items && entry.ecommerce.items.length > 0) {
+                if (window.__wscCheckoutDebug) {
+                    console.log('🔧 WSC Checkout Tracking: Found cart data at index', i, entry);
+                }
                 return {
                     items: entry.ecommerce.items,
                     value: entry.ecommerce.value || 0,
-                    currency: entry.ecommerce.currency || 'EUR'
+                    currency: entry.ecommerce.currency || 'EUR',
+                    user: entry.user || {} // Include user data from dataLayer
                 };
             }
         }
+
+        if (window.__wscCheckoutDebug) console.warn('🔧 WSC Checkout Tracking: No cart items found in dataLayer!');
         return null;
     }
 
     // Helper: Push event to dataLayer and Matomo
-    function pushEvent(eventName, payload) {
-        const eventPayload = Object.assign({ event: eventName }, payload);
+    function pushEvent(eventName, ecommerceData, userData) {
+        const eventPayload = {
+            event: eventName,
+            ecommerce: ecommerceData,
+            user: userData || {} // Include user data if available
+        };
+
+        if (window.__wscCheckoutDebug) {
+            console.log('📤 WSC Checkout Tracking: Pushing event:', eventName, eventPayload);
+        }
 
         if (Array.isArray(dataLayer)) {
             dataLayer.push({ ecommerce: null });
             dataLayer.push(eventPayload);
+            if (window.__wscCheckoutDebug) console.log('✅ Pushed to window.dataLayer');
         }
 
         if (Array.isArray(mtmLayer)) {
             mtmLayer.push({ ecommerce: null });
             mtmLayer.push(eventPayload);
+            if (window.__wscCheckoutDebug) console.log('✅ Pushed to window._mtm');
         }
-
-        // Debug mode
-        {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') %}
-        console.log('🔍 WSC Checkout Event:', eventName, eventPayload);
-        {% endif %}
     }
 
     // Track payment method selection
     let lastPaymentMethod = null;
 
     function trackPaymentMethodChange() {
+        if (window.__wscCheckoutDebug) console.log('🔧 WSC Checkout Tracking: trackPaymentMethodChange() called');
+
         // Find selected payment method
         const selectedPayment = document.querySelector('input[name="paymentMethodId"]:checked');
         if (!selectedPayment) {
+            if (window.__wscCheckoutDebug) console.warn('🔧 WSC Checkout Tracking: No payment method selected (selector: input[name="paymentMethodId"]:checked)');
             return;
         }
+
+        if (window.__wscCheckoutDebug) console.log('🔧 WSC Checkout Tracking: Found selected payment:', selectedPayment);
 
         const paymentMethodId = selectedPayment.value;
 
@@ -82,34 +117,41 @@
 
         // Only fire if payment method changed
         if (paymentMethodId === lastPaymentMethod) {
+            if (window.__wscCheckoutDebug) console.log('🔧 WSC Checkout Tracking: Payment method unchanged, skipping event');
             return;
         }
         lastPaymentMethod = paymentMethodId;
 
-        const cartData = getCartItems();
+        if (window.__wscCheckoutDebug) console.log('🔧 WSC Checkout Tracking: Payment method changed to:', paymentMethodName, '(ID:', paymentMethodId, ')');
+
+        const cartData = getCartData();
         if (!cartData) {
+            if (window.__wscCheckoutDebug) console.warn('🔧 WSC Checkout Tracking: Cannot track payment - no cart data!');
             return;
         }
 
         pushEvent('add_payment_info', {
-            ecommerce: {
-                currency: cartData.currency,
-                value: cartData.value,
-                payment_type: paymentMethodName,
-                items: cartData.items
-            }
-        });
+            currency: cartData.currency,
+            value: cartData.value,
+            payment_type: paymentMethodName,
+            items: cartData.items
+        }, cartData.user);
     }
 
     // Track shipping method selection
     let lastShippingMethod = null;
 
     function trackShippingMethodChange() {
+        if (window.__wscCheckoutDebug) console.log('🔧 WSC Checkout Tracking: trackShippingMethodChange() called');
+
         // Find selected shipping method
         const selectedShipping = document.querySelector('input[name="shippingMethodId"]:checked');
         if (!selectedShipping) {
+            if (window.__wscCheckoutDebug) console.warn('🔧 WSC Checkout Tracking: No shipping method selected (selector: input[name="shippingMethodId"]:checked)');
             return;
         }
+
+        if (window.__wscCheckoutDebug) console.log('🔧 WSC Checkout Tracking: Found selected shipping:', selectedShipping);
 
         const shippingMethodId = selectedShipping.value;
 
@@ -137,31 +179,36 @@
 
         // Only fire if shipping method changed
         if (shippingMethodId === lastShippingMethod) {
+            if (window.__wscCheckoutDebug) console.log('🔧 WSC Checkout Tracking: Shipping method unchanged, skipping event');
             return;
         }
         lastShippingMethod = shippingMethodId;
 
-        const cartData = getCartItems();
+        if (window.__wscCheckoutDebug) console.log('🔧 WSC Checkout Tracking: Shipping method changed to:', shippingMethodName, '(ID:', shippingMethodId, ')');
+
+        const cartData = getCartData();
         if (!cartData) {
+            if (window.__wscCheckoutDebug) console.warn('🔧 WSC Checkout Tracking: Cannot track shipping - no cart data!');
             return;
         }
 
         pushEvent('add_shipping_info', {
-            ecommerce: {
-                currency: cartData.currency,
-                value: cartData.value,
-                shipping_tier: shippingMethodName,
-                items: cartData.items
-            }
-        });
+            currency: cartData.currency,
+            value: cartData.value,
+            shipping_tier: shippingMethodName,
+            items: cartData.items
+        }, cartData.user);
     }
 
     // Register event listeners
     function registerListeners() {
+        if (window.__wscCheckoutDebug) console.log('🔧 WSC Checkout Tracking: Registering event listeners...');
+
         // Listen for payment method changes (radio buttons)
         document.addEventListener('change', function(event) {
             const target = event.target;
             if (target && target.name === 'paymentMethodId') {
+                if (window.__wscCheckoutDebug) console.log('🔧 WSC Checkout Tracking: Payment method change event detected');
                 // Delay to allow UI to update
                 setTimeout(trackPaymentMethodChange, 100);
             }
@@ -171,33 +218,44 @@
         document.addEventListener('change', function(event) {
             const target = event.target;
             if (target && target.name === 'shippingMethodId') {
+                if (window.__wscCheckoutDebug) console.log('🔧 WSC Checkout Tracking: Shipping method change event detected');
                 // Delay to allow UI to update
                 setTimeout(trackShippingMethodChange, 100);
             }
         });
 
-        // Also track on page load (user might have pre-selected methods)
-        setTimeout(function() {
-            // Check if we're on confirm page with selected methods
-            if (window.location.pathname.includes('/checkout/confirm')) {
-                const selectedPayment = document.querySelector('input[name="paymentMethodId"]:checked');
-                const selectedShipping = document.querySelector('input[name="shippingMethodId"]:checked');
+        if (window.__wscCheckoutDebug) {
+            console.log('🔧 WSC Checkout Tracking: Change listeners registered');
+            // Debug: Check if inputs exist on page
+            const paymentInputs = document.querySelectorAll('input[name="paymentMethodId"]');
+            const shippingInputs = document.querySelectorAll('input[name="shippingMethodId"]');
+            console.log('🔧 WSC Checkout Tracking: Found', paymentInputs.length, 'payment inputs');
+            console.log('🔧 WSC Checkout Tracking: Found', shippingInputs.length, 'shipping inputs');
+        }
 
-                if (selectedPayment) {
-                    trackPaymentMethodChange();
-                }
-                if (selectedShipping) {
-                    trackShippingMethodChange();
-                }
-            }
-        }, 500);
+        // IMPORTANT: DO NOT auto-track on page load!
+        // This would cause duplicate events when begin_checkout fires.
+        // Events should only be tracked when the user MANUALLY changes the selection.
+
+        if (window.__wscCheckoutDebug) {
+            console.log('⚠️ WSC Checkout Tracking: Auto-tracking on page load is DISABLED');
+            console.log('   Reason: Prevents duplicate events with begin_checkout');
+            console.log('   Events will only fire when user manually changes payment/shipping method');
+        }
     }
 
     // Initialize
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', registerListeners);
+        if (window.__wscCheckoutDebug) console.log('🔧 WSC Checkout Tracking: DOM still loading, waiting for DOMContentLoaded...');
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.__wscCheckoutDebug) console.log('🔧 WSC Checkout Tracking: DOMContentLoaded fired, registering listeners');
+            registerListeners();
+        });
     } else {
+        if (window.__wscCheckoutDebug) console.log('🔧 WSC Checkout Tracking: DOM already loaded, registering listeners immediately');
         registerListeners();
     }
+
+    if (window.__wscCheckoutDebug) console.log('✅ WSC Checkout Tracking: Initialization complete!');
 })();
 </script>

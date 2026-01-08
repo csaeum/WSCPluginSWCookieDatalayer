@@ -21,14 +21,41 @@
     const mtmLayer = window._mtm || [];
 
     /**
+     * Get user data from existing dataLayer entries
+     */
+    function getUserData() {
+        if (window.__wscDebugMode) console.log('🔧 WSC Lead: Getting user data from dataLayer...');
+
+        for (let i = dataLayer.length - 1; i >= 0; i--) {
+            const entry = dataLayer[i];
+            if (entry && entry.user && Object.keys(entry.user).length > 0) {
+                if (window.__wscDebugMode) {
+                    console.log('🔧 WSC Lead: Found user data at index', i, entry.user);
+                }
+                return entry.user;
+            }
+        }
+
+        if (window.__wscDebugMode) console.log('🔧 WSC Lead: No user data found in dataLayer');
+        return {}; // Empty object for guest users
+    }
+
+    /**
      * Push generate_lead event to dataLayer and mtmLayer
      */
     function pushLeadEvent(formName, additionalData = {}) {
+        const userData = getUserData();
+
         const eventData = {
             event: 'generate_lead',
             form_name: formName,
+            user: userData, // Include user data
             ...additionalData
         };
+
+        if (window.__wscDebugMode) {
+            console.log('📝 WSC Generate Lead Event pushing:', eventData);
+        }
 
         // Push to Google Analytics / GTM
         if (Array.isArray(dataLayer)) {
@@ -41,7 +68,7 @@
         }
 
         if (window.__wscDebugMode) {
-            console.log('📝 WSC Generate Lead Event pushed:', eventData);
+            console.log('✅ WSC Generate Lead Event pushed successfully');
         }
     }
 

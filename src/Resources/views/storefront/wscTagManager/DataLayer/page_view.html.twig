@@ -1,0 +1,134 @@
+{# Page View Event Tracking - Universal for GA4, Matomo & Jitsu #}
+<script>
+(function() {
+    'use strict';
+
+    // Set debug mode from backend config
+    window.__wscDebugMode = {{ config('WscSwCookieDataLayer.config.wscTagManagerDataLayerDebug') ? 'true' : 'false' }};
+
+    if (window.__wscDebugMode) {
+        console.log('🚀 WSC Page View Script LOADED!');
+        console.log('🔧 WSC Page View: __wscPageViewTracked =', window.__wscPageViewTracked);
+        console.log('🔧 WSC Page View: document.readyState =', document.readyState);
+    }
+
+    // Check if already initialized (prevent duplicate page_view on same page)
+    if (window.__wscPageViewTracked) {
+        if (window.__wscDebugMode) console.log('⚠️ WSC Page View: Already tracked, skipping');
+        return;
+    }
+    window.__wscPageViewTracked = true;
+
+    const dataLayer = window.dataLayer || [];
+    const mtmLayer = window._mtm || [];
+
+    /**
+     * Get user data directly from Twig context (server-side)
+     * This is more reliable than waiting for frontend dataLayer events!
+     */
+    function getUserData() {
+        {% set customer = context.customer|default(null) %}
+        const userData = {
+            user_email: '{{ customer ? customer.email|default('')|e('js') : '' }}',
+            user_country: '{{ customer and customer.defaultBillingAddress and customer.defaultBillingAddress.country ? customer.defaultBillingAddress.country.translated.name|default('')|e('js') : '' }}',
+            user_city: '{{ customer and customer.defaultBillingAddress ? customer.defaultBillingAddress.city|default('')|e('js') : '' }}'
+        };
+
+        // Return empty object if no email (guest user)
+        if (!userData.user_email) {
+            if (window.__wscDebugMode) console.log('🔧 WSC Page View: Guest user (no email)');
+            return {};
+        }
+
+        if (window.__wscDebugMode) console.log('🔧 WSC Page View: User data from Twig:', userData);
+
+        return userData;
+    }
+
+    /**
+     * Get page type from URL or existing dataLayer
+     */
+    function getPageType() {
+        // Try to get from existing dataLayer events
+        for (let i = dataLayer.length - 1; i >= 0; i--) {
+            const entry = dataLayer[i];
+            if (entry && entry.event) {
+                // Infer page type from event
+                if (entry.event === 'view_item') return 'product';
+                if (entry.event === 'view_item_list') return 'category';
+                if (entry.event === 'begin_checkout') return 'checkout';
+                if (entry.event === 'purchase') return 'purchase_confirmation';
+                if (entry.event === 'view_search_results') return 'search';
+            }
+        }
+
+        // Fallback: Infer from URL
+        const path = window.location.pathname;
+
+        if (path.includes('/product/') || path.includes('/detail/')) return 'product';
+        if (path.includes('/checkout/confirm')) return 'checkout';
+        if (path.includes('/checkout/finish')) return 'purchase_confirmation';
+        if (path.includes('/search')) return 'search';
+        if (path.includes('/navigation/') || path.includes('/category/')) return 'category';
+        if (path === '/' || path === '') return 'home';
+
+        return 'other';
+    }
+
+    /**
+     * Push page_view event to dataLayer and mtmLayer
+     */
+    function pushPageViewEvent() {
+        const userData = getUserData();
+        const pageType = getPageType();
+
+        const eventData = {
+            event: 'page_view',
+            page_title: document.title,
+            page_location: window.location.href,
+            page_path: window.location.pathname,
+            page_type: pageType,
+            user: userData
+        };
+
+        if (window.__wscDebugMode) {
+            console.log('📄 WSC Page View Event:', eventData);
+        }
+
+        // Push to dataLayer and mtmLayer
+        if (Array.isArray(dataLayer)) {
+            dataLayer.push(eventData);
+            if (window.__wscDebugMode) console.log('✅ Pushed to window.dataLayer');
+        }
+
+        if (Array.isArray(mtmLayer)) {
+            mtmLayer.push(eventData);
+            if (window.__wscDebugMode) console.log('✅ Pushed to window._mtm');
+        }
+
+        if (window.__wscDebugMode) {
+            console.log('✅ Page View tracked! Type:', pageType, '| User:', Object.keys(userData).length > 0 ? 'Present' : 'Guest');
+        }
+    }
+
+    /**
+     * Initialize page_view tracking
+     */
+    function initPageView() {
+        try {
+            pushPageViewEvent();
+        } catch (error) {
+            console.error('❌ WSC Page View Error:', error);
+        }
+    }
+
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+        if (window.__wscDebugMode) console.log('🔧 WSC Page View: Waiting for DOM...');
+        document.addEventListener('DOMContentLoaded', initPageView);
+    } else {
+        if (window.__wscDebugMode) console.log('🔧 WSC Page View: DOM ready, tracking now');
+        initPageView();
+    }
+})();
+</script>

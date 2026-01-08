@@ -1,0 +1,380 @@
+{# Jitsu DataLayer Bridge - Forwards dataLayer events to Jitsu client-side #}
+<script>
+(function() {
+    'use strict';
+
+    // Check if Jitsu tracking is enabled
+    {% if not config('WscSwCookieDataLayer.config.wscTagManagerJitsu') %}
+        return;
+    {% endif %}
+
+    // Set debug mode from backend config
+    window.__wscJitsuDebug = {{ config('WscSwCookieDataLayer.config.wscTagManagerJitsuDebug') ? 'true' : 'false' }};
+
+    if (window.__wscJitsuDebug) console.log('🚀 Jitsu DataLayer Bridge: Initializing...');
+
+    // Check if already initialized
+    if (window.__wscJitsuBridgeInitialized) {
+        if (window.__wscJitsuDebug) console.log('⚠️ Jitsu DataLayer Bridge: Already initialized, skipping');
+        return;
+    }
+    window.__wscJitsuBridgeInitialized = true;
+
+    // Configuration
+    const JITSU_URL = '{{ config('WscSwCookieDataLayer.config.wscTagManagerJitsuUrl') }}';
+    const JITSU_WRITE_KEY = '{{ config('WscSwCookieDataLayer.config.wscTagManagerJitsuWriteKey') }}';
+    const CONSENT_MODE_ENABLED = {{ config('WscSwCookieDataLayer.config.wscTagManagerJitsuConsentMode') ? 'true' : 'false' }};
+
+    if (!JITSU_URL || !JITSU_WRITE_KEY) {
+        console.error('❌ Jitsu DataLayer Bridge: Missing Jitsu URL or Write Key configuration');
+        return;
+    }
+
+    // Events to track to Jitsu (GA4-compatible events)
+    const TRACKED_EVENTS = [
+        'page_view',              // Universal page view tracking
+        'add_to_cart',
+        'remove_from_cart',
+        'add_to_wishlist',
+        'view_item',
+        'view_item_list',
+        'select_item',
+        'begin_checkout',
+        'add_payment_info',
+        'add_shipping_info',
+        'purchase',
+        'refund',
+        'search',
+        'view_search_results',    // GA4 standard search event
+        'login',
+        'sign_up',
+        'select_promotion',
+        'view_promotion',
+        'generate_lead',
+        'add_to_compare'
+    ];
+
+    /**
+     * Read cookie by name (synchronous!)
+     */
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return null;
+    }
+
+    /**
+     * Parse consent cookie (synchronous!)
+     */
+    function parseConsentFromCookie() {
+        const cookieValue = getCookie('wsc_cookie_consent');
+        if (!cookieValue) return null;
+
+        try {
+            const decoded = decodeURIComponent(cookieValue);
+            const consent = JSON.parse(decoded);
+
+            if (consent && consent.categories && Array.isArray(consent.categories)) {
+                return consent.categories;
+            }
+        } catch (e) {
+            if (window.__wscJitsuDebug) console.warn('⚠️ Failed to parse consent cookie:', e);
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if analytics consent is granted
+     */
+    function hasAnalyticsConsent() {
+        if (!CONSENT_MODE_ENABLED) {
+            return true; // Consent mode disabled, always track
+        }
+
+        // PRIORITY 1: Read directly from cookie (synchronous, always available!)
+        const cookieCategories = parseConsentFromCookie();
+        if (cookieCategories && cookieCategories.includes('analytics')) {
+            if (window.__wscJitsuDebug) console.log('✅ Jitsu: Analytics consent GRANTED (from cookie)');
+            return true;
+        }
+
+        // PRIORITY 2: Check Cookie Consent library (if already loaded)
+        if (typeof CookieConsent !== 'undefined' && CookieConsent.getUserPreferences) {
+            const preferences = CookieConsent.getUserPreferences();
+            if (preferences && preferences.acceptedCategories) {
+                if (preferences.acceptedCategories.includes('analytics')) {
+                    if (window.__wscJitsuDebug) console.log('✅ Jitsu: Analytics consent GRANTED (from library)');
+                    return true;
+                }
+            }
+        }
+
+        // PRIORITY 3: Fallback - Check localStorage
+        try {
+            const ccPrefs = localStorage.getItem('cc_preferences');
+            if (ccPrefs) {
+                const prefs = JSON.parse(ccPrefs);
+                if (prefs && prefs.acceptedCategories) {
+                    if (prefs.acceptedCategories.includes('analytics')) {
+                        if (window.__wscJitsuDebug) console.log('✅ Jitsu: Analytics consent GRANTED (from localStorage)');
+                        return true;
+                    }
+                }
+            }
+        } catch (e) {
+            if (window.__wscJitsuDebug) console.warn('⚠️ Jitsu: Failed to read consent from localStorage:', e);
+        }
+
+        // No consent found or analytics not granted
+        if (window.__wscJitsuDebug) {
+            if (cookieCategories) {
+                console.log('🚫 Jitsu: Analytics consent DENIED (cookie found but analytics not in:', cookieCategories, ')');
+            } else {
+                console.log('🚫 Jitsu: No consent cookie found - defaulting to DENIED');
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Get consent data for Jitsu context
+     */
+    function getConsentData() {
+        if (!CONSENT_MODE_ENABLED) {
+            return null;
+        }
+
+        try {
+            // PRIORITY 1: Read from cookie (synchronous!)
+            const cookieCategories = parseConsentFromCookie();
+            if (cookieCategories && Array.isArray(cookieCategories)) {
+                return {
+                    analytics: cookieCategories.includes('analytics'),
+                    marketing: cookieCategories.includes('marketing'),
+                    functional: cookieCategories.includes('functional')
+                };
+            }
+
+            // PRIORITY 2: Check Cookie Consent library
+            if (typeof CookieConsent !== 'undefined' && CookieConsent.getUserPreferences) {
+                const preferences = CookieConsent.getUserPreferences();
+                if (preferences && preferences.acceptedCategories) {
+                    return {
+                        analytics: preferences.acceptedCategories.includes('analytics'),
+                        marketing: preferences.acceptedCategories.includes('marketing'),
+                        functional: preferences.acceptedCategories.includes('functional')
+                    };
+                }
+            }
+
+            // PRIORITY 3: Fallback - Check localStorage
+            const ccPrefs = localStorage.getItem('cc_preferences');
+            if (ccPrefs) {
+                const prefs = JSON.parse(ccPrefs);
+                if (prefs && prefs.acceptedCategories) {
+                    return {
+                        analytics: prefs.acceptedCategories.includes('analytics'),
+                        marketing: prefs.acceptedCategories.includes('marketing'),
+                        functional: prefs.acceptedCategories.includes('functional')
+                    };
+                }
+            }
+        } catch (e) {
+            if (window.__wscJitsuDebug) console.warn('⚠️ Jitsu: Failed to get consent data:', e);
+        }
+
+        return null;
+    }
+
+    /**
+     * Get or create anonymous ID (session ID)
+     */
+    function getAnonymousId() {
+        // Try to get session ID from existing Shopware session
+        if (window.__wscSessionId) {
+            return window.__wscSessionId;
+        }
+
+        // Fallback: Generate or retrieve from sessionStorage
+        let anonId = sessionStorage.getItem('__wscAnonId');
+        if (!anonId) {
+            anonId = 'anon_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+            sessionStorage.setItem('__wscAnonId', anonId);
+        }
+        return anonId;
+    }
+
+    /**
+     * Send event to Jitsu
+     */
+    function sendToJitsu(eventName, eventData) {
+        // Check consent
+        if (!hasAnalyticsConsent()) {
+            if (window.__wscJitsuDebug) {
+                console.log('🚫 Jitsu: Event blocked - no analytics consent', {
+                    event: eventName
+                });
+            }
+            return;
+        }
+
+        // Build payload
+        const payload = {
+            event: eventName,
+            properties: eventData.ecommerce || eventData,
+            anonymousId: getAnonymousId(),
+            timestamp: new Date().toISOString(),
+            context: {
+                page: {
+                    url: window.location.href,
+                    referrer: document.referrer,
+                    title: document.title
+                },
+                userAgent: navigator.userAgent,
+                screen: {
+                    width: window.screen.width,
+                    height: window.screen.height
+                }
+            }
+        };
+
+        // Add user data from dataLayer event if available
+        if (eventData.user && Object.keys(eventData.user).length > 0) {
+            payload.traits = {
+                email: eventData.user.user_email || '',
+                country: eventData.user.user_country || '',
+                city: eventData.user.user_city || ''
+            };
+
+            // If user email exists, use it as userId (hashed or not)
+            if (eventData.user.user_email) {
+                payload.userId = eventData.user.user_email;
+            }
+
+            if (window.__wscJitsuDebug) {
+                console.log('🔧 Jitsu: Added user data to payload', payload.traits);
+            }
+        }
+
+        // Add consent data to context
+        const consentData = getConsentData();
+        if (consentData) {
+            payload.context.consent = consentData;
+        }
+
+        // Send to Jitsu S2S endpoint
+        const endpoint = JITSU_URL.replace(/\/$/, '') + '/api/s/s2s/track';
+
+        if (window.__wscJitsuDebug) {
+            console.log('📤 Jitsu: Sending event', {
+                event: eventName,
+                endpoint: endpoint,
+                payload: payload
+            });
+        }
+
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Write-Key': JITSU_WRITE_KEY
+            },
+            body: JSON.stringify(payload),
+            // Use keepalive for reliable tracking
+            keepalive: true
+        })
+        .then(response => {
+            if (window.__wscJitsuDebug) {
+                if (response.ok) {
+                    console.log('✅ Jitsu: Event sent successfully', {
+                        event: eventName,
+                        status: response.status
+                    });
+                } else {
+                    console.error('❌ Jitsu: Event failed', {
+                        event: eventName,
+                        status: response.status,
+                        statusText: response.statusText
+                    });
+                }
+            }
+        })
+        .catch(error => {
+            if (window.__wscJitsuDebug) {
+                console.error('❌ Jitsu: Network error', {
+                    event: eventName,
+                    error: error.message
+                });
+            }
+        });
+    }
+
+    /**
+     * Process dataLayer push
+     */
+    function processDataLayerPush(item) {
+        if (!item || typeof item !== 'object') return;
+
+        const eventName = item.event;
+
+        // Skip non-trackable events
+        if (!eventName || !TRACKED_EVENTS.includes(eventName)) {
+            return;
+        }
+
+        if (window.__wscJitsuDebug) {
+            console.log('🔍 Jitsu: Processing dataLayer event', {
+                event: eventName,
+                data: item
+            });
+        }
+
+        // Send to Jitsu
+        sendToJitsu(eventName, item);
+    }
+
+    /**
+     * Install dataLayer interceptor
+     */
+    function installDataLayerInterceptor() {
+        // Initialize dataLayer if it doesn't exist
+        window.dataLayer = window.dataLayer || [];
+
+        // Process existing events
+        if (Array.isArray(window.dataLayer)) {
+            window.dataLayer.forEach(item => {
+                processDataLayerPush(item);
+            });
+        }
+
+        // Intercept future pushes
+        const originalPush = Array.prototype.push;
+        window.dataLayer.push = function(...args) {
+            // Process each pushed item
+            args.forEach(item => {
+                processDataLayerPush(item);
+            });
+
+            // Call original push
+            return originalPush.apply(this, args);
+        };
+
+        if (window.__wscJitsuDebug) {
+            console.log('✅ Jitsu DataLayer Bridge: Interceptor installed successfully');
+        }
+    }
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', installDataLayerInterceptor);
+    } else {
+        installDataLayerInterceptor();
+    }
+
+    if (window.__wscJitsuDebug) {
+        console.log('✅ Jitsu DataLayer Bridge: Initialized successfully');
+    }
+})();
+</script>

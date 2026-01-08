@@ -24,6 +24,26 @@
     let lastClickedProduct = null;
 
     /**
+     * Get user data from existing dataLayer entries
+     */
+    function getUserData() {
+        if (window.__wscDebugMode) console.log('🔧 WSC Compare: Getting user data from dataLayer...');
+
+        for (let i = dataLayer.length - 1; i >= 0; i--) {
+            const entry = dataLayer[i];
+            if (entry && entry.user && Object.keys(entry.user).length > 0) {
+                if (window.__wscDebugMode) {
+                    console.log('🔧 WSC Compare: Found user data at index', i, entry.user);
+                }
+                return entry.user;
+            }
+        }
+
+        if (window.__wscDebugMode) console.log('🔧 WSC Compare: No user data found in dataLayer');
+        return {}; // Empty object for guest users
+    }
+
+    /**
      * Get product data from data-product-info attribute
      */
     function getProductDataFromElement(element) {
@@ -74,10 +94,17 @@
      * Push event to dataLayer and mtmLayer
      */
     function pushEvent(eventName, eventData) {
+        const userData = getUserData();
+
         const fullEventData = {
             event: eventName,
+            user: userData, // Include user data
             ...eventData
         };
+
+        if (window.__wscDebugMode) {
+            console.log(`⚖️ WSC ${eventName} Event pushing:`, fullEventData);
+        }
 
         // Push to Google Analytics / GTM
         if (Array.isArray(dataLayer)) {
@@ -90,7 +117,7 @@
         }
 
         if (window.__wscDebugMode) {
-            console.log(`⚖️ WSC ${eventName} Event pushed:`, fullEventData);
+            console.log(`✅ WSC ${eventName} Event pushed successfully`);
         }
     }
 

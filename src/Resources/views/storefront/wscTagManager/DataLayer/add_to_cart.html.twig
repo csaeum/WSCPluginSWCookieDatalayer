@@ -90,13 +90,40 @@
     }
 
     /**
-     * Push event to dataLayer and mtmLayer
+     * Get user data from existing dataLayer entries
+     */
+    function getUserData() {
+        if (window.__wscDebugMode) console.log('🔧 WSC Cart: Getting user data from dataLayer...');
+
+        for (let i = dataLayer.length - 1; i >= 0; i--) {
+            const entry = dataLayer[i];
+            if (entry && entry.user && Object.keys(entry.user).length > 0) {
+                if (window.__wscDebugMode) {
+                    console.log('🔧 WSC Cart: Found user data at index', i, entry.user);
+                }
+                return entry.user;
+            }
+        }
+
+        if (window.__wscDebugMode) console.log('🔧 WSC Cart: No user data found in dataLayer (guest user or not logged in)');
+        return {}; // Empty object for guest users
+    }
+
+    /**
+     * Push event to dataLayer and mtmLayer (with user data)
      */
     function pushEvent(eventName, ecommerceData) {
+        const userData = getUserData();
+
         const eventData = {
             event: eventName,
-            ecommerce: ecommerceData
+            ecommerce: ecommerceData,
+            user: userData // Include user data from dataLayer
         };
+
+        if (window.__wscDebugMode) {
+            console.log('📤 WSC Cart: Pushing event:', eventName, eventData);
+        }
 
         // Clear ecommerce object first (Google Best Practice)
         if (Array.isArray(dataLayer)) {

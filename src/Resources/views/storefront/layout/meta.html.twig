@@ -21,6 +21,18 @@
     {% endif %}
     {# Einbindung von Cookie Consent ENDE #}
 
+    {# Jitsu DataLayer Bridge - Forwards dataLayer events to Jitsu #}
+    {# WICHTIG: Muss VOR den dataLayer Events geladen werden #}
+    {% if config('WscSwCookieDataLayer.config.wscTagManagerJitsu') %}
+        {% sw_include '@WscSwCookieDataLayer/storefront/wscTagManager/Jitsu/JitsuDataLayerBridge.html.twig' %}
+    {% endif %}
+
+    {# Page View Event - Universal for GA4, Matomo & Jitsu #}
+    {# WICHTIG: Lädt NACH Jitsu Bridge, damit Interceptor es abfangen kann! #}
+    {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayerGoogle') or config('WscSwCookieDataLayer.config.wscTagManagerDataLayerMatomo') %}
+        {% sw_include '@WscSwCookieDataLayer/storefront/wscTagManager/DataLayer/page_view.html.twig' %}
+    {% endif %}
+
     {# Add to Cart / Remove from Cart / Wishlist / Select Item Event Tracking (auf ALLEN Seiten) #}
     {# Muss außerhalb der Whitelist sein, damit OffCanvas-Events überall funktionieren #}
     {% if config('WscSwCookieDataLayer.config.wscTagManagerDataLayer') %}

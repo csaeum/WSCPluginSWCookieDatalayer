@@ -19,6 +19,26 @@
     const viewedPromotions = new Set();
 
     /**
+     * Get user data from existing dataLayer entries
+     */
+    function getUserData() {
+        if (window.__wscDebugMode) console.log('🔧 WSC Promotion: Getting user data from dataLayer...');
+
+        for (let i = dataLayer.length - 1; i >= 0; i--) {
+            const entry = dataLayer[i];
+            if (entry && entry.user && Object.keys(entry.user).length > 0) {
+                if (window.__wscDebugMode) {
+                    console.log('🔧 WSC Promotion: Found user data at index', i, entry.user);
+                }
+                return entry.user;
+            }
+        }
+
+        if (window.__wscDebugMode) console.log('🔧 WSC Promotion: No user data found in dataLayer');
+        return {}; // Empty object for guest users
+    }
+
+    /**
      * Parse BEM-style CSS class for promotion info
      * Example: "datalayer-promotion-slider--bestseller"
      * Returns: {type: 'slider', identifier: 'bestseller'}
@@ -157,17 +177,25 @@
         // - {type: 'product_promotion', items: [...products...], promotion_info: {...}}
         // - {type: 'content_promotion', items: [{promotion_id, ...}], promotion_info: {...}}
 
+        const userData = getUserData();
+
         const eventData = {
             event: eventName,
             ecommerce: {
                 items: promotionDataResult.items
-            }
+            },
+            user: userData // Include user data
         };
 
         // Add promotion_id and promotion_name to top level for easier filtering in GA4
         if (promotionDataResult.promotion_info) {
             eventData.ecommerce.promotion_id = promotionDataResult.promotion_info.promotion_id;
             eventData.ecommerce.promotion_name = promotionDataResult.promotion_info.promotion_name;
+        }
+
+        if (window.__wscDebugMode) {
+            console.log('🎨 WSC Promotion Event pushing:', eventName, promotionDataResult.type, eventData);
+            console.log('   Items:', promotionDataResult.items.length, promotionDataResult.type === 'product_promotion' ? 'products' : 'promotion');
         }
 
         // Push to Google Analytics / GTM
@@ -183,8 +211,7 @@
         }
 
         if (window.__wscDebugMode) {
-            console.log('🎨 WSC Promotion Event pushed:', eventName, promotionDataResult.type, eventData);
-            console.log('   Items:', promotionDataResult.items.length, promotionDataResult.type === 'product_promotion' ? 'products' : 'promotion');
+            console.log('✅ WSC Promotion Event pushed successfully');
         }
     }
 

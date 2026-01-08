@@ -1,0 +1,150 @@
+{# Cookie Consent Settings Button - Floating Button zum erneuten Öffnen der Cookie-Einstellungen #}
+{% if config('WscSwCookieDataLayer.config.wscCookieConsentShowButton') %}
+
+{% set buttonPosition = config('WscSwCookieDataLayer.config.wscCookieConsentButtonPosition')|default('bottom-left') %}
+{% set buttonIcon = config('WscSwCookieDataLayer.config.wscCookieConsentButtonIcon')|default('🍪') %}
+
+<style>
+    /* Cookie Consent Settings Button */
+    #wsc-cookie-settings-btn {
+        position: fixed;
+        z-index: 999999; /* Under consent modal (1000000) but above everything else */
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background-color: var(--cc-btn-primary-bg, #4a90e2);
+        color: var(--cc-btn-primary-text, #ffffff);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        transition: all 0.3s ease;
+        opacity: 0.9;
+        font-family: Arial, sans-serif;
+    }
+
+    #wsc-cookie-settings-btn:hover {
+        opacity: 1;
+        transform: scale(1.1);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+    }
+
+    #wsc-cookie-settings-btn:active {
+        transform: scale(0.95);
+    }
+
+    /* Position variants */
+    #wsc-cookie-settings-btn.position-bottom-left {
+        bottom: 20px;
+        left: 20px;
+    }
+
+    #wsc-cookie-settings-btn.position-bottom-right {
+        bottom: 20px;
+        right: 20px;
+    }
+
+    #wsc-cookie-settings-btn.position-top-left {
+        top: 20px;
+        left: 20px;
+    }
+
+    #wsc-cookie-settings-btn.position-top-right {
+        top: 20px;
+        right: 20px;
+    }
+
+    /* Mobile adjustments */
+    @media (max-width: 768px) {
+        #wsc-cookie-settings-btn {
+            width: 45px;
+            height: 45px;
+            font-size: 20px;
+        }
+
+        #wsc-cookie-settings-btn.position-bottom-left,
+        #wsc-cookie-settings-btn.position-bottom-right,
+        #wsc-cookie-settings-btn.position-top-left,
+        #wsc-cookie-settings-btn.position-top-right {
+            bottom: 15px;
+            right: 15px;
+            left: auto;
+            top: auto;
+        }
+
+        /* On mobile, always bottom-right for consistency */
+        #wsc-cookie-settings-btn {
+            bottom: 15px !important;
+            right: 15px !important;
+            left: auto !important;
+            top: auto !important;
+        }
+    }
+
+    /* Accessibility */
+    #wsc-cookie-settings-btn:focus {
+        outline: 3px solid var(--cc-btn-primary-bg, #4a90e2);
+        outline-offset: 2px;
+    }
+
+    /* Hide when consent modal is open */
+    body.cc--anim #wsc-cookie-settings-btn {
+        opacity: 0;
+        pointer-events: none;
+    }
+</style>
+
+<button
+    id="wsc-cookie-settings-btn"
+    class="position-{{ buttonPosition|e('html_attr') }}"
+    type="button"
+    aria-label="{{ 'wscCookieConsent.button.ariaLabel'|trans|default('Cookie-Einstellungen öffnen') }}"
+    title="{{ 'wscCookieConsent.button.title'|trans|default('Cookie-Einstellungen') }}"
+>
+    {{ buttonIcon|raw }}
+</button>
+
+<script>
+(function() {
+    'use strict';
+
+    // Wait for Cookie Consent library to load
+    function initCookieSettingsButton() {
+        const button = document.getElementById('wsc-cookie-settings-btn');
+        if (!button) return;
+
+        // Check if CookieConsent library is loaded
+        if (typeof CookieConsent === 'undefined' || typeof CookieConsent.showPreferences !== 'function') {
+            console.warn('WSC Cookie Settings Button: CookieConsent library not loaded yet, retrying...');
+            setTimeout(initCookieSettingsButton, 100);
+            return;
+        }
+
+        // Add click handler
+        button.addEventListener('click', function() {
+            if (typeof CookieConsent.showPreferences === 'function') {
+                CookieConsent.showPreferences();
+            } else {
+                console.error('WSC Cookie Settings Button: CookieConsent.showPreferences() not available');
+            }
+        });
+
+        // Debug log
+        if (typeof window.__wscDebugMode !== 'undefined' && window.__wscDebugMode) {
+            console.log('✅ WSC Cookie Settings Button: Initialized');
+        }
+    }
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initCookieSettingsButton);
+    } else {
+        initCookieSettingsButton();
+    }
+})();
+</script>
+
+{% endif %}

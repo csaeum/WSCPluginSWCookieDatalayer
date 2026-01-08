@@ -369,6 +369,68 @@
             <helpText lang="fr-FR">Les thèmes personnalisés 1 et 2 s'adaptent automatiquement aux couleurs de votre thème Shopware (par ex. couleur primaire, couleur de succès). Les 3 thèmes Orest Bida ont des couleurs fixes.</helpText>
         </input-field>
 
+        <input-field type="bool">
+            <name>wscCookieConsentShowButton</name>
+            <label lang="de-DE">Cookie-Einstellungen Button anzeigen</label>
+            <label lang="en-GB">Show Cookie Settings Button</label>
+            <label lang="fr-FR">Afficher le bouton des paramètres des cookies</label>
+            <helpText lang="de-DE">Zeigt einen Floating-Button zum erneuten Öffnen der Cookie-Einstellungen (DSGVO-konform!)</helpText>
+            <helpText lang="en-GB">Shows a floating button to reopen cookie settings (GDPR-compliant!)</helpText>
+            <helpText lang="fr-FR">Affiche un bouton flottant pour rouvrir les paramètres des cookies (conforme RGPD!)</helpText>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="single-select">
+            <name>wscCookieConsentButtonPosition</name>
+            <label lang="de-DE">Button-Position</label>
+            <label lang="en-GB">Button Position</label>
+            <label lang="fr-FR">Position du bouton</label>
+            <options>
+                <option>
+                    <id>bottom-left</id>
+                    <name lang="de-DE">Unten Links</name>
+                    <name lang="en-GB">Bottom Left</name>
+                    <name lang="fr-FR">En bas à gauche</name>
+                </option>
+                <option>
+                    <id>bottom-right</id>
+                    <name lang="de-DE">Unten Rechts</name>
+                    <name lang="en-GB">Bottom Right</name>
+                    <name lang="fr-FR">En bas à droite</name>
+                </option>
+                <option>
+                    <id>top-left</id>
+                    <name lang="de-DE">Oben Links</name>
+                    <name lang="en-GB">Top Left</name>
+                    <name lang="fr-FR">En haut à gauche</name>
+                </option>
+                <option>
+                    <id>top-right</id>
+                    <name lang="de-DE">Oben Rechts</name>
+                    <name lang="en-GB">Top Right</name>
+                    <name lang="fr-FR">En haut à droite</name>
+                </option>
+            </options>
+            <defaultValue>bottom-left</defaultValue>
+            <helpText lang="de-DE">Position des Cookie-Einstellungen Buttons auf der Seite</helpText>
+            <helpText lang="en-GB">Position of the cookie settings button on the page</helpText>
+            <helpText lang="fr-FR">Position du bouton des paramètres des cookies sur la page</helpText>
+        </input-field>
+
+        <input-field type="text">
+            <name>wscCookieConsentButtonIcon</name>
+            <label lang="de-DE">Button-Icon</label>
+            <label lang="en-GB">Button Icon</label>
+            <label lang="fr-FR">Icône du bouton</label>
+            <placeholder lang="de-DE">🍪</placeholder>
+            <placeholder lang="en-GB">🍪</placeholder>
+            <placeholder lang="fr-FR">🍪</placeholder>
+            <helpText lang="de-DE">Icon für den Button (Emoji, SVG, oder Font-Icon-Klasse). Beispiele: 🍪, ⚙️, 🔒, &lt;svg&gt;...&lt;/svg&gt;</helpText>
+            <helpText lang="en-GB">Icon for the button (Emoji, SVG, or Font Icon class). Examples: 🍪, ⚙️, 🔒, &lt;svg&gt;...&lt;/svg&gt;</helpText>
+            <helpText lang="fr-FR">Icône pour le bouton (Emoji, SVG, ou classe d'icône de police). Exemples: 🍪, ⚙️, 🔒, &lt;svg&gt;...&lt;/svg&gt;</helpText>
+            <defaultValue>🍪</defaultValue>
+        </input-field>
+
     </card>
 
     <card>
