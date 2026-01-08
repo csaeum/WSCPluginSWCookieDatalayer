@@ -2,3 +2,5 @@
 /.phpunit.cache
 /vendor
 /tests/Fixtures/*.log
+/.php-cs-fixer.cache
+/phpstan.cache

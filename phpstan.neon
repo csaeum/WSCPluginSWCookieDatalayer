@@ -1,0 +1,35 @@
+parameters:
+    level: 5
+    paths:
+        - src
+        - tests
+
+    excludePaths:
+        - src/Resources
+        - tests/bootstrap.php
+
+    # Ignore specific errors
+    ignoreErrors:
+        # Shopware specific
+        - '#Call to an undefined method Shopware\\Core\\Framework\\DataAbstractionLayer\\Entity::get.*\(\)#'
+        - '#Access to an undefined property Shopware\\Core\\Framework\\DataAbstractionLayer\\Entity::\$.*#'
+
+        # Twig templates (not analyzed)
+        - '#Cannot access property \$.*on mixed#'
+
+    # Symfony & Shopware compatibility
+    symfony:
+        container_xml_path: '%rootDir%/../../../var/cache/dev/Shopware_Core_KernelDevDebugContainer.xml'
+        constant_hassers: false
+        console_application_loader: false
+
+    # Performance
+    parallel:
+        maximumNumberOfProcesses: 4
+
+    # Check missing return types
+    checkMissingIterableValueType: false
+    checkGenericClassInNonGenericObjectType: false
+
+    # Report unknown classes
+    reportUnmatchedIgnoredErrors: false

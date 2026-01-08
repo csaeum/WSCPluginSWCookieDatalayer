@@ -2,8 +2,11 @@
 
 **Shopware 6 Plugin** für DSGVO-konformes Cookie Consent Management mit OrestBida Cookie Consent v3, DataLayer Integration und Tag Manager Support (Google GTM/GA4, Matomo).
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Shopware Version](https://img.shields.io/badge/Shopware-6.7%2B-blue)](https://www.shopware.com)
+[![CI](https://github.com/csaeum/WSCPluginSWCookieDatalayer/workflows/CI/badge.svg)](https://github.com/csaeum/WSCPluginSWCookieDatalayer/actions/workflows/ci.yml)
+[![PHP Version](https://img.shields.io/badge/PHP-8.0%20%7C%208.1%20%7C%208.2%20%7C%208.3-blue)](https://php.net)
+[![Shopware](https://img.shields.io/badge/Shopware-6.5%20%7C%206.6%20%7C%206.7-blue)](https://www.shopware.com)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL%203.0-blue.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/Tests-17%20passing-success)](tests/)
 
 ---
 

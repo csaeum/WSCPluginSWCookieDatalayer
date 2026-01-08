@@ -1,0 +1,124 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - 'v*.*.*-*'
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: mbstring, xml, ctype, iconv
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Get version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Update composer.json version
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          jq --arg version "$VERSION" '.version = $version' composer.json > composer.json.tmp
+          mv composer.json.tmp composer.json
+
+      - name: Create release archive
+        run: |
+          PLUGIN_NAME="WscSwCookieDataLayer"
+          ZIP_NAME="${PLUGIN_NAME}-${{ steps.version.outputs.version }}.zip"
+
+          # Create temporary directory for clean plugin structure
+          mkdir -p release/$PLUGIN_NAME
+
+          # Copy plugin files (exclude dev files)
+          rsync -av --progress \
+            --exclude='.git*' \
+            --exclude='node_modules' \
+            --exclude='coverage' \
+            --exclude='tests' \
+            --exclude='.phpunit*' \
+            --exclude='phpunit.xml*' \
+            --exclude='.php-cs-fixer*' \
+            --exclude='phpstan*' \
+            --exclude='.idea' \
+            --exclude='*.md' \
+            --exclude='.github' \
+            . release/$PLUGIN_NAME/
+
+          # Create ZIP
+          cd release
+          zip -r "../$ZIP_NAME" "$PLUGIN_NAME"
+          cd ..
+
+          echo "zip_name=$ZIP_NAME" >> $GITHUB_ENV
+          echo "zip_path=./$ZIP_NAME" >> $GITHUB_ENV
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -A1 ${{ steps.version.outputs.tag }} | tail -1)
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "changelog=Initial release" >> $GITHUB_OUTPUT
+          else
+            CHANGELOG=$(git log --pretty=format:"- %s" $PREVIOUS_TAG..${{ steps.version.outputs.tag }})
+            echo "changelog<<EOF" >> $GITHUB_OUTPUT
+            echo "$CHANGELOG" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ steps.version.outputs.version }}
+          body: |
+            ## 🚀 Release ${{ steps.version.outputs.version }}
+
+            ### 📦 Installation
+            1. Download `${{ env.zip_name }}`
+            2. Upload to Shopware 6 Extension Manager
+            3. Install & activate the plugin
+
+            ### 📝 Changes
+            ${{ steps.changelog.outputs.changelog }}
+
+            ### 📋 System Requirements
+            - Shopware 6.5.0 - 6.7.x
+            - PHP 8.0+
+
+            ### 📚 Documentation
+            See [README.md](https://github.com/csaeum/WSCPluginSWCookieDatalayer/blob/main/README.md) for setup instructions.
+
+            ---
+            🎯 Generated with GitHub Actions
+          files: ${{ env.zip_path }}
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Shopware Store (optional)
+        if: ${{ !contains(steps.version.outputs.version, '-') }}
+        run: |
+          echo "🏪 Shopware Store update would happen here"
+          echo "Version: ${{ steps.version.outputs.version }}"
+          echo "Archive: ${{ env.zip_name }}"
+          # TODO: Add Shopware Store API integration if desired
